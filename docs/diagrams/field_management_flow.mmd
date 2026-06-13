@@ -1,0 +1,51 @@
+flowchart TD
+    subgraph LOAD[Load fields]
+        A[My Fields tab] --> B[Get user id]
+        B --> C[Stream Supabase fields]
+        C --> D[Filter user_id equals uid]
+        D --> E[Order by created_at]
+        E --> F[Display field cards]
+    end
+
+    subgraph CREATE[Create field]
+        F --> G{Add field action}
+        G --> H[Navigate FarmDetailsScreen]
+        H --> I[Enter name and address]
+        I --> J[Pick or capture preview image]
+        J --> K[Upload preview image]
+        K --> L[Insert public fields row]
+        L --> F
+    end
+
+    subgraph VIEW[View field]
+        F --> M{Tap field card}
+        M --> N[Navigate FieldDetailScreen]
+        N --> O[Stream detections by field_id]
+        O --> P[Show field details history]
+    end
+
+    subgraph EDIT[Edit field long press]
+        F --> Q{Long press field card}
+        Q --> R[Navigate EditFieldScreen]
+        R --> S[Load Supabase fields row by id]
+        S --> T{Owner check user_id}
+        T -->|No| U[Show no access]
+        U --> F
+        T -->|Yes| V[Editable form]
+        V --> W[Edit name]
+        V --> X[Edit address]
+        V --> Y[Update preview image]
+        Y --> Z{Image source}
+        Z -->|Camera| AA[Take photo]
+        Z -->|Gallery| AB[Pick photo]
+        AA --> AC[Upload image]
+        AB --> AC
+        AC --> AD[Set preview_image_path]
+        W --> AE[Save]
+        X --> AE
+        AD --> AE
+        AE --> AF[Update fields row]
+        AF --> AG[Keep user_id unchanged]
+        AG --> AH[Back to list]
+        AH --> F
+    end

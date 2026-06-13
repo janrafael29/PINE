@@ -1,0 +1,31 @@
+# mealybug_v13afix = v12 weights + v10 + Va field + unique fix500 images
+
+name: mealybug_v13afix
+data: datasets/mealybug_v13afix/data.yaml
+weights: runs/retrain/mealybug_v12/weights/best.pt
+
+epochs: 80
+imgsz: 640
+batch: 16
+device: "0"
+workers: 8
+
+optimizer: AdamW
+lr0: 0.0003
+lrf: 0.01
+cos_lr: true
+warmup_epochs: 2
+weight_decay: 0.0005
+patience: 15
+
+dropout: 0.1
+box: 7.5
+cls_gain: 1.0
+dfl: 1.5
+close_mosaic: 10
+
+conf: 0.25
+iou: 0.6
+
+export_imgsz: 640
+no_export: true

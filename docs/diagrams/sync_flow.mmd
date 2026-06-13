@@ -1,0 +1,47 @@
+flowchart TD
+    subgraph SAVE[Save from field flow]
+        A[User taps Save] --> B[insertCapturedPhoto]
+        B --> C[enqueueUpload]
+        C --> D[status pending attempts zero]
+        D --> E[syncInBackground]
+    end
+
+    subgraph MONITOR[Connectivity checks]
+        E --> F[CloudSyncService]
+        F --> G{auth currentUser exists}
+        G -->|No| H[Return cannot upload]
+        G -->|Yes| I[DNS lookup]
+        I --> J{Online}
+        J -->|No| K[Leave queue pending]
+        K --> L[Wait and retry later]
+        L --> F
+    end
+
+    subgraph SYNC[Pending uploads]
+        J -->|Yes| M[syncPending]
+        M --> N[getPendingUploads limit 10]
+        N --> O{More records}
+        O -->|No| P[Sync complete]
+        O -->|Yes| Q[Process next record]
+        Q --> R[Check local image file]
+        R --> S{File exists}
+        S -->|No| T[markUploadFailed]
+        T --> U{Attempts below max}
+        U -->|Yes| O
+        U -->|No| V[Mark failed permanent]
+        V --> O
+        S -->|Yes| W[DetectionService saveDetection]
+        W --> X[Upload to Storage detections bucket]
+        X --> Y[Insert row into detections]
+        Y --> Z[Update fields metadata if field id]
+        Z --> AA{Success}
+        AA -->|Yes| AB[markUploadSynced]
+        AB --> O
+        AA -->|No| T
+    end
+
+    subgraph STATUS[Current indicator behavior]
+        AC[SyncStatusIndicator] --> AD[Static green cloud icon]
+        AD --> AE[Tooltip Supabase cloud]
+        AF[No multi state indicator in code]
+    end

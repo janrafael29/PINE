@@ -1,0 +1,32 @@
+# PINYA-PIC mealybug_va — field annotations ONLY (~877 images, 70/15/15 split)
+# Fine-tune from v11 @ 640. Eval field test + optional 17k benchmark test.
+
+name: mealybug_va
+data: datasets/mealybug_va_field/data.yaml
+weights: runs/retrain/mealybug_v11/weights/best.pt
+
+epochs: 100
+imgsz: 640
+batch: 16
+device: "0"
+workers: 8
+
+optimizer: AdamW
+lr0: 0.0005
+lrf: 0.01
+cos_lr: true
+warmup_epochs: 3
+weight_decay: 0.0005
+patience: 25
+
+dropout: 0.1
+box: 7.5
+cls_gain: 1.0
+dfl: 1.5
+close_mosaic: 10
+
+conf: 0.25
+iou: 0.6
+
+export_imgsz: 640
+no_export: true

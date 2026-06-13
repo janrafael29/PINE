@@ -1,0 +1,256 @@
+{
+  "meta": {
+    "generated_at": "2026-06-10 13:43 UTC",
+    "model": "runs/retrain/mealybug_v16_selffix/weights/best.pt",
+    "labels": "datasets/mealybug_v13afix/test/labels_v16_corrected",
+    "conf": 0.25,
+    "iou_match": 0.5,
+    "images_scanned": 1952,
+    "counts_found": {
+      "tp": 12757,
+      "fp": 2577,
+      "fn": 8397,
+      "poor_localization": 5275
+    },
+    "counts_exported": {
+      "tp": 8,
+      "fp": 8,
+      "fn": 8,
+      "poor_localization": 8
+    }
+  },
+  "samples": {
+    "tp": [
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/tp/01_tp_test_001305.jpg",
+        "source_image": "test_001305.jpg",
+        "iou": 0.776,
+        "conf": 1.0,
+        "note": "Matched at IoU >= 0.50"
+      },
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/tp/02_tp_test_001621.jpg",
+        "source_image": "test_001621.jpg",
+        "iou": 0.999,
+        "conf": 1.0,
+        "note": "Matched at IoU >= 0.50"
+      },
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/tp/03_tp_test_001831.jpg",
+        "source_image": "test_001831.jpg",
+        "iou": 0.684,
+        "conf": 1.0,
+        "note": "Matched at IoU >= 0.50"
+      },
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/tp/04_tp_test_000169.jpg",
+        "source_image": "test_000169.jpg",
+        "iou": 0.694,
+        "conf": 1.0,
+        "note": "Matched at IoU >= 0.50"
+      },
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/tp/05_tp_test_000721.jpg",
+        "source_image": "test_000721.jpg",
+        "iou": 0.867,
+        "conf": 1.0,
+        "note": "Matched at IoU >= 0.50"
+      },
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/tp/06_tp_test_000788.jpg",
+        "source_image": "test_000788.jpg",
+        "iou": 0.999,
+        "conf": 1.0,
+        "note": "Matched at IoU >= 0.50"
+      },
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/tp/07_tp_test_001737.jpg",
+        "source_image": "test_001737.jpg",
+        "iou": 0.852,
+        "conf": 1.0,
+        "note": "Matched at IoU >= 0.50"
+      },
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/tp/08_tp_test_000587.jpg",
+        "source_image": "test_000587.jpg",
+        "iou": 0.972,
+        "conf": 1.0,
+        "note": "Matched at IoU >= 0.50"
+      }
+    ],
+    "fp": [
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/fp/01_fp_test_000106.jpg",
+        "source_image": "test_000106.jpg",
+        "iou": 0.0,
+        "conf": 1.0,
+        "note": "No overlapping ground-truth box"
+      },
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/fp/02_fp_test_001179.jpg",
+        "source_image": "test_001179.jpg",
+        "iou": 0.0,
+        "conf": 1.0,
+        "note": "No overlapping ground-truth box"
+      },
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/fp/03_fp_test_001069.jpg",
+        "source_image": "test_001069.jpg",
+        "iou": 0.0,
+        "conf": 1.0,
+        "note": "No overlapping ground-truth box"
+      },
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/fp/04_fp_test_000199.jpg",
+        "source_image": "test_000199.jpg",
+        "iou": 0.0,
+        "conf": 1.0,
+        "note": "No overlapping ground-truth box"
+      },
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/fp/05_fp_test_000450.jpg",
+        "source_image": "test_000450.jpg",
+        "iou": 0.0,
+        "conf": 1.0,
+        "note": "No overlapping ground-truth box"
+      },
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/fp/06_fp_test_000693.jpg",
+        "source_image": "test_000693.jpg",
+        "iou": 0.0,
+        "conf": 1.0,
+        "note": "No overlapping ground-truth box"
+      },
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/fp/07_fp_test_000505.jpg",
+        "source_image": "test_000505.jpg",
+        "iou": 0.0,
+        "conf": 1.0,
+        "note": "No overlapping ground-truth box"
+      },
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/fp/08_fp_test_000937.jpg",
+        "source_image": "test_000937.jpg",
+        "iou": 0.0,
+        "conf": 1.0,
+        "note": "No overlapping ground-truth box"
+      }
+    ],
+    "fn": [
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/fn/01_fn_test_000278.jpg",
+        "source_image": "test_000278.jpg",
+        "iou": 0.0,
+        "conf": 1.0,
+        "note": "Ground truth not detected at deploy threshold"
+      },
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/fn/02_fn_test_000251.jpg",
+        "source_image": "test_000251.jpg",
+        "iou": 0.0,
+        "conf": 1.0,
+        "note": "Ground truth not detected at deploy threshold"
+      },
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/fn/03_fn_test_000208.jpg",
+        "source_image": "test_000208.jpg",
+        "iou": 0.0,
+        "conf": 1.0,
+        "note": "Ground truth not detected at deploy threshold"
+      },
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/fn/04_fn_test_001460.jpg",
+        "source_image": "test_001460.jpg",
+        "iou": 0.0,
+        "conf": 1.0,
+        "note": "Ground truth not detected at deploy threshold"
+      },
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/fn/05_fn_test_001752.jpg",
+        "source_image": "test_001752.jpg",
+        "iou": 0.0,
+        "conf": 1.0,
+        "note": "Ground truth not detected at deploy threshold"
+      },
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/fn/06_fn_test_001810.jpg",
+        "source_image": "test_001810.jpg",
+        "iou": 0.0,
+        "conf": 1.0,
+        "note": "Ground truth not detected at deploy threshold"
+      },
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/fn/07_fn_test_001313.jpg",
+        "source_image": "test_001313.jpg",
+        "iou": 0.0,
+        "conf": 1.0,
+        "note": "Ground truth not detected at deploy threshold"
+      },
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/fn/08_fn_test_000757.jpg",
+        "source_image": "test_000757.jpg",
+        "iou": 0.0,
+        "conf": 1.0,
+        "note": "Ground truth not detected at deploy threshold"
+      }
+    ],
+    "poor_localization": [
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/poor_localization/01_poor_localization_test_000129.jpg",
+        "source_image": "test_000129.jpg",
+        "iou": 0.662,
+        "conf": 1.0,
+        "note": "Detected but box not tight (IoU 0.50\u20130.75)"
+      },
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/poor_localization/02_poor_localization_test_000682.jpg",
+        "source_image": "test_000682.jpg",
+        "iou": 0.684,
+        "conf": 1.0,
+        "note": "Detected but box not tight (IoU 0.50\u20130.75)"
+      },
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/poor_localization/03_poor_localization_test_000795.jpg",
+        "source_image": "test_000795.jpg",
+        "iou": 0.517,
+        "conf": 1.0,
+        "note": "Detected but box not tight (IoU 0.50\u20130.75)"
+      },
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/poor_localization/04_poor_localization_test_001418.jpg",
+        "source_image": "test_001418.jpg",
+        "iou": 0.301,
+        "conf": 1.0,
+        "note": "Overlap with GT but below IoU 0.50 match"
+      },
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/poor_localization/05_poor_localization_test_000274.jpg",
+        "source_image": "test_000274.jpg",
+        "iou": 0.466,
+        "conf": 1.0,
+        "note": "Overlap with GT but below IoU 0.50 match"
+      },
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/poor_localization/06_poor_localization_test_000852.jpg",
+        "source_image": "test_000852.jpg",
+        "iou": 0.663,
+        "conf": 1.0,
+        "note": "Detected but box not tight (IoU 0.50\u20130.75)"
+      },
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/poor_localization/07_poor_localization_test_000593.jpg",
+        "source_image": "test_000593.jpg",
+        "iou": 0.584,
+        "conf": 1.0,
+        "note": "Detected but box not tight (IoU 0.50\u20130.75)"
+      },
+      {
+        "file": "/workspace/pine/docs/thesis/assets/confusion_cases_v16/poor_localization/08_poor_localization_test_001772.jpg",
+        "source_image": "test_001772.jpg",
+        "iou": 0.733,
+        "conf": 1.0,
+        "note": "Detected but box not tight (IoU 0.50\u20130.75)"
+      }
+    ]
+  }
+}

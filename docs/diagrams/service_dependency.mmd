@@ -1,0 +1,67 @@
+flowchart TD
+    subgraph CORE[Core Layer]
+        SL[ServiceLocator]
+        AS[AppState Provider]
+        SC[SupabaseClientProvider]
+    end
+
+    subgraph UI[UI Layer]
+        DS[DetectionScreen]
+        MD[MainDashboardScreen]
+        FL[FieldsListScreen]
+        EF[EditFieldScreen]
+        FD[FieldDetailScreen]
+        PS[ProfileScreen]
+        FS[FeedbackScreen]
+    end
+
+    subgraph ORCH[Orchestration]
+        DFC[DetectionFlowController]
+        DSC[DashboardStatsCalculator]
+    end
+
+    subgraph SERVICES[Service Layer]
+        CS[CameraService]
+        IS[InferenceService]
+        GS[GeoService]
+        GFS[GeoFenceService]
+        ISS[ImageStorageService]
+        DBS[DatabaseService SQLite]
+        CTS[CloudSyncService]
+        RDS[DetectionService]
+        BIO[BiometricService]
+    end
+
+    subgraph DATA[Data Layer]
+        SQL[(SQLite)]
+        PG[(Supabase Postgres)]
+        ST[(Supabase Storage)]
+    end
+
+    SC --> MD
+    SC --> FL
+    SC --> PS
+
+    DS --> DFC
+    MD --> DSC
+
+    DFC --> CS
+    DFC --> IS
+    DFC --> GS
+    DFC --> GFS
+    DFC --> ISS
+    DFC --> DBS
+
+    DSC --> PG
+
+    CTS --> DBS
+    CTS --> ISS
+    CTS --> RDS
+    FS --> CTS
+
+    RDS --> ST
+    RDS --> PG
+    DBS --> SQL
+
+    IS --> TFLITE[TFLite YOLO]
+    GS --> GPS[GPS]

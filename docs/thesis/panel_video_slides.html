@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PINYA-PIC — Panel Progress Report</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Georgia, serif;
+      background: linear-gradient(160deg, #0c1929 0%, #132f1f 45%, #0c1929 100%);
+      color: #f1f5f9;
+    }
+    .slide {
+      min-height: 100vh;
+      padding: 3rem 4rem 4.5rem;
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      position: relative;
+    }
+    .slide.active { display: flex; }
+    .footer {
+      position: absolute;
+      bottom: 1.25rem;
+      left: 4rem;
+      right: 4rem;
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: #64748b;
+      border-top: 1px solid #1e3a2f;
+      padding-top: 0.75rem;
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      padding: 0.35rem 1rem;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 1.25rem;
+    }
+    h1 {
+      font-size: 2.35rem;
+      margin: 0 0 0.5rem;
+      color: #fff;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+    .subtitle {
+      font-size: 1.35rem;
+      color: #86efac;
+      margin: 0 0 2rem;
+      font-weight: 400;
+    }
+    h2 {
+      font-size: 1.15rem;
+      color: #94a3b8;
+      font-weight: 500;
+      margin: 0 0 1.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    ul, ol {
+      font-size: 1.2rem;
+      line-height: 1.65;
+      max-width: 920px;
+      margin: 0;
+      padding-left: 1.35rem;
+    }
+    li { margin: 0.5rem 0; }
+    li::marker { color: #4ade80; }
+    table {
+      border-collapse: collapse;
+      font-size: 1.1rem;
+      width: 100%;
+      max-width: 920px;
+    }
+    th, td {
+      border: 1px solid #2d4a3e;
+      padding: 0.65rem 1.1rem;
+      text-align: left;
+    }
+    th {
+      background: rgba(30, 58, 47, 0.8);
+      color: #86efac;
+      font-weight: 600;
+    }
+    tr:nth-child(even) td { background: rgba(15, 30, 24, 0.5); }
+    .metric {
+      color: #4ade80;
+      font-weight: 700;
+      font-size: 1.15em;
+    }
+    .highlight-box {
+      background: rgba(30, 58, 47, 0.6);
+      border: 1px solid #2d4a3e;
+      border-radius: 12px;
+      padding: 1.5rem 2rem;
+      max-width: 920px;
+      margin-top: 1rem;
+    }
+    .big-metric {
+      font-size: 3.5rem;
+      font-weight: 800;
+      color: #4ade80;
+      line-height: 1;
+      margin: 0.5rem 0;
+    }
+    .big-metric span {
+      font-size: 1.5rem;
+      color: #94a3b8;
+      font-weight: 500;
+    }
+    .note {
+      font-size: 1rem;
+      color: #94a3b8;
+      margin-top: 1.25rem;
+      max-width: 920px;
+      line-height: 1.5;
+    }
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      max-width: 920px;
+    }
+    .box {
+      background: rgba(30, 58, 47, 0.7);
+      border: 1px solid #2d4a3e;
+      border-radius: 10px;
+      padding: 1.25rem;
+      text-align: center;
+    }
+    .box strong {
+      display: block;
+      color: #86efac;
+      font-size: 1rem;
+      margin-bottom: 0.5rem;
+    }
+    .box .metric { font-size: 1.75rem; display: block; margin-top: 0.5rem; }
+    .steps {
+      counter-reset: step;
+      list-style: none;
+      padding: 0;
+    }
+    .steps li {
+      position: relative;
+      padding-left: 3rem;
+      margin: 1rem 0;
+    }
+    .steps li::before {
+      counter-increment: step;
+      content: counter(step);
+      position: absolute;
+      left: 0;
+      top: 0.1rem;
+      width: 2rem;
+      height: 2rem;
+      background: #166534;
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+    .title-center {
+      text-align: center;
+      align-items: center;
+    }
+    .title-center .footer { justify-content: center; gap: 2rem; }
+    .student-line {
+      font-size: 1.15rem;
+      color: #cbd5e1;
+      margin: 0.25rem 0;
+    }
+    .nav-hint {
+      position: fixed;
+      bottom: 0.5rem;
+      right: 1rem;
+      font-size: 0.7rem;
+      color: #334155;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    body:hover .nav-hint { opacity: 1; }
+    .slide-img {
+      max-width: 920px;
+      width: 100%;
+      max-height: 58vh;
+      object-fit: contain;
+      border-radius: 10px;
+      border: 1px solid #2d4a3e;
+      margin-top: 0.75rem;
+    }
+    .img-row {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      max-width: 920px;
+    }
+    @media (max-width: 900px) {
+      .flow { grid-template-columns: 1fr; }
+      .slide { padding: 2rem; }
+      h1 { font-size: 1.75rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 1 Title -->
+  <div class="slide title-center active">
+    <span class="badge">Progress Report — Work in Progress</span>
+    <h1>PINYA-PIC</h1>
+    <p class="subtitle">Pineapple Mealybug Detection Mobile Application</p>
+    <p class="student-line">Offline, On-Device AI for Field Pest Scouting</p>
+    <p class="student-line" style="margin-top:2rem;color:#64748b;">May 2026</p>
+    <div class="footer" style="border:none;justify-content:center;">
+      <span>PANEL PROGRESS UPDATE</span>
+      <span>1 / 16</span>
+    </div>
+  </div>
+
+  <!-- 2 Agenda -->
+  <div class="slide">
+    <h2>Presentation Outline</h2>
+    <h1>Agenda</h1>
+    <ol>
+      <li>Detection model performance (Version 16)</li>
+      <li>Training curves — mealybug_v16_selffix</li>
+      <li>Methodology: how results were achieved</li>
+      <li>Comparison with related literature</li>
+      <li>System evaluation (benchmark, experts, farmers)</li>
+      <li>Live demonstration of the mobile application</li>
+      <li>Summary and next steps</li>
+    </ol>
+    <div class="footer"><span>PINYA-PIC</span><span>2 / 16</span></div>
+  </div>
+
+  <!-- 3 Headline metrics -->
+  <div class="slide">
+    <h2>Model Performance Evaluation</h2>
+    <h1>Version 16 — Test Set Results</h1>
+    <p class="note" style="margin-top:0;margin-bottom:1.5rem;">
+      Held-out test set: <strong>1,952 images</strong> · <strong>18,891</strong> labeled mealybug instances (corrected ground truth)
+    </p>
+    <table>
+      <tr><th>Evaluation Metric</th><th>Result</th></tr>
+      <tr><td>Mean Average Precision (mAP@0.5)</td><td class="metric">73.3%</td></tr>
+      <tr><td>Precision</td><td class="metric">80.6%</td></tr>
+      <tr><td>Recall</td><td class="metric">64.7%</td></tr>
+      <tr><td>mAP@0.5:0.95</td><td class="metric">40.7%</td></tr>
+    </table>
+    <p class="note">Standard object-detection metrics: a detection counts as correct only when the predicted box sufficiently overlaps the expert label.</p>
+    <div class="footer"><span>PINYA-PIC</span><span>3 / 16</span></div>
+  </div>
+
+  <!-- 4 Test benchmark 73.3% -->
+  <div class="slide">
+    <h2>Held-Out Test Evaluation</h2>
+    <h1>Test Set Benchmark — 73.3% mAP@0.5</h1>
+    <img
+      class="slide-img"
+      src="assets/v16_selffix/v16_test_benchmark_73.3.png"
+      alt="v16 test benchmark: legacy vs corrected labels, 73.3% mAP"
+    />
+    <p class="note">Ultralytics <code>yolo val</code> on corrected test labels · Not the same as training-validation curves (≈66% peak)</p>
+    <div class="footer"><span>PINYA-PIC</span><span>4 / 16</span></div>
+  </div>
+
+  <!-- 5 Training curves -->
+  <div class="slide">
+    <h2>Model Training — mealybug_v16_selffix</h2>
+    <h1>Training &amp; Validation Curves</h1>
+    <p class="note" style="margin-top:0;">Fine-tune from Version 15 · YOLO26s @ 1280px · 92 epochs logged (local run)</p>
+    <img
+      class="slide-img"
+      src="assets/v16_selffix/v16_selffix_training_curves.png"
+      alt="v16_selffix training curves: loss, precision, recall, mAP"
+    />
+    <p class="note">Best <strong>validation mAP@0.5 during training: 66.3%</strong> at epoch 67 · Held-out <strong>test</strong> (corrected labels): <strong>73.3%</strong></p>
+    <div class="footer"><span>PINYA-PIC</span><span>5 / 16</span></div>
+  </div>
+
+  <!-- 6 Metrics progression -->
+  <div class="slide">
+    <h2>Model Training — mealybug_v16_selffix</h2>
+    <h1>Validation mAP Progression</h1>
+    <img
+      class="slide-img"
+      src="assets/v16_selffix/v16_selffix_map_progression.png"
+      alt="v16_selffix mAP precision recall vs epoch"
+    />
+    <p class="note">Validation metrics on the training val split — not the final corrected test evaluation (73.3%).</p>
+    <div class="footer"><span>PINYA-PIC</span><span>6 / 16</span></div>
+  </div>
+
+  <!-- 7 Transparency -->
+  <div class="slide">
+    <h2>Transparent Reporting</h2>
+    <h1>Two Test Evaluations Reported</h1>
+    <table>
+      <tr><th>Ground-truth labels</th><th>mAP@0.5</th><th>Precision</th><th>Recall</th></tr>
+      <tr>
+        <td>Original labels (under-counted)</td>
+        <td>~66%</td>
+        <td>~72%</td>
+        <td>~62%</td>
+      </tr>
+      <tr>
+        <td><strong>Corrected labels (fair evaluation)</strong></td>
+        <td class="metric"><strong>73.3%</strong></td>
+        <td class="metric"><strong>80.6%</strong></td>
+        <td class="metric"><strong>64.7%</strong></td>
+      </tr>
+    </table>
+    <div class="highlight-box">
+      The increase reflects <strong>fairer ground-truth labels</strong> and a <strong>stronger model</strong> — not a single reporting shortcut.
+    </div>
+    <div class="footer"><span>PINYA-PIC</span><span>7 / 16</span></div>
+  </div>
+
+  <!-- 8 Methodology -->
+  <div class="slide">
+    <h2>Methodology</h2>
+    <h1>How We Achieved the Current Results</h1>
+    <ol class="steps">
+      <li><strong>Independent label audit</strong> — About half of training images were missing mealybugs in the original annotations.</li>
+      <li><strong>Training data correction</strong> — Added 17,277 missing bounding boxes; trained Version 15.</li>
+      <li><strong>Self-training refinement</strong> — Version 15 found additional pests; 2,744 boxes added; Version 16 fine-tuned (~66% on original test labels).</li>
+      <li><strong>Fair test evaluation</strong> — Test labels updated using high-confidence Version 16 detections → <span class="metric">73.3% mAP@0.5</span>.</li>
+    </ol>
+    <div class="footer"><span>PINYA-PIC</span><span>8 / 16</span></div>
+  </div>
+
+  <!-- 9 Progress -->
+  <div class="slide">
+    <h2>Model Development Progress</h2>
+    <h1>Improvement Over Prior Versions</h1>
+    <table>
+      <tr><th>Model version</th><th>Test mAP@0.5</th><th>Major improvement</th></tr>
+      <tr><td>Earlier deployed model</td><td>61.0%</td><td>Baseline mobile deployment</td></tr>
+      <tr><td>Version 15</td><td>56.7% – 61.1%</td><td>Corrected training annotations</td></tr>
+      <tr><td>Version 16 (original test labels)</td><td>~66%</td><td>Self-training + fine-tuning</td></tr>
+      <tr><td><strong>Version 16 (corrected test labels)</strong></td><td class="metric"><strong>73.3%</strong></td><td><strong>Current best — fair evaluation</strong></td></tr>
+    </table>
+    <div class="footer"><span>PINYA-PIC</span><span>9 / 16</span></div>
+  </div>
+
+  <!-- 10 Literature -->
+  <div class="slide">
+    <h2>Related Literature</h2>
+    <h1>Comparison with Published Pest Detection Studies</h1>
+    <table>
+      <tr><th>Reference</th><th>Reported mAP@0.5</th><th>Task context</th></tr>
+      <tr><td>Zhang et al. (2022) — AgriPest-YOLO</td><td class="metric">71.3%</td><td>Multi-class pests, large field dataset</td></tr>
+      <tr><td>Wang et al. (2022) — Pest-YOLO</td><td class="metric">69.6%</td><td>Dense, tiny agricultural pests</td></tr>
+      <tr><td>Yu et al. (2025) — YOLO-DCPG</td><td class="metric">74.0%</td><td>Intensive small-target detection</td></tr>
+      <tr><td>Wu et al. (2019) — IP102 benchmark</td><td>48–55%*</td><td>Established difficulty of pest detection</td></tr>
+    </table>
+    <p class="note">*Early baseline detectors on IP102. PINYA-PIC: <strong>single-class</strong>, <strong>leaf-level</strong>, <strong>on-device</strong> — <span class="metric">73.3%</span> falls within the <strong>~70–74%</strong> range reported for comparable work.</p>
+    <div class="footer"><span>PINYA-PIC</span><span>10 / 16</span></div>
+  </div>
+
+  <!-- 11 Evaluation framework -->
+  <div class="slide">
+    <h2>System Evaluation</h2>
+    <h1>Three Complementary Evaluation Approaches</h1>
+    <div class="flow">
+      <div class="box">
+        <strong>Automated Benchmark</strong>
+        Detection quality on 1,952 labeled test images
+        <span class="metric">73.3%</span>
+        <small style="color:#94a3b8;">mAP@0.5</small>
+      </div>
+      <div class="box">
+        <strong>Expert Field Validation</strong>
+        Agricultural experts review app output in the field
+        <span class="metric">91.75%</span>
+        <small style="color:#94a3b8;">F1-score</small>
+      </div>
+      <div class="box">
+        <strong>Farmer Usability (SUS)</strong>
+        System Usability Scale after hands-on tasks
+        <span class="metric">77.0</span>
+        <small style="color:#94a3b8;">mean score (n = 10)</small>
+      </div>
+    </div>
+    <p class="note">Each measure answers a different research question — they are reported separately and not combined into a single “accuracy” figure.</p>
+    <div class="footer"><span>PINYA-PIC</span><span>11 / 16</span></div>
+  </div>
+
+  <!-- 12 SUS -->
+  <div class="slide">
+    <h2>Usability Evaluation</h2>
+    <h1>System Usability Scale (SUS)</h1>
+    <ul>
+      <li><strong>Instrument:</strong> Standard 10-item questionnaire (Brooke, 1986)</li>
+      <li><strong>Participants:</strong> 10 valid responses from pineapple farmers</li>
+      <li><strong>Procedure:</strong> Task-based testing, then SUS questionnaire</li>
+    </ul>
+    <div class="highlight-box" style="text-align:center;">
+      <p style="margin:0;color:#94a3b8;">Mean SUS Score</p>
+      <p class="big-metric">77.0 <span>/ 100</span></p>
+      <p style="margin:0;color:#86efac;">Above industry average benchmark (68) — rated “Good”</p>
+    </div>
+    <div class="footer"><span>PINYA-PIC</span><span>12 / 16</span></div>
+  </div>
+
+  <!-- 13 Expert -->
+  <div class="slide">
+    <h2>Expert Field Validation</h2>
+    <h1>Office of the Municipal Agriculturist — Expert Review</h1>
+    <ul>
+      <li><strong>3 expert validators</strong> · 7 field images each (21 images total)</li>
+      <li>4 images with mealybugs + 3 pest-free images per validator</li>
+      <li>Same <strong>30% confidence threshold</strong> as the deployed application</li>
+    </ul>
+    <table>
+      <tr><th>Metric (pooled positive images)</th><th>Result</th></tr>
+      <tr><td>F1-Score</td><td class="metric">91.75%</td></tr>
+      <tr><td>Precision</td><td class="metric">99.58%</td></tr>
+      <tr><td>Recall</td><td class="metric">85.64%</td></tr>
+    </table>
+    <p class="note">Conducted on the prior deployed build; <strong>re-validation with Version 16</strong> is planned before final defense.</p>
+    <div class="footer"><span>PINYA-PIC</span><span>13 / 16</span></div>
+  </div>
+
+  <!-- 14 Metrics distinction -->
+  <div class="slide">
+    <h2>Clarification for the Panel</h2>
+    <h1>These Metrics Measure Different Things</h1>
+    <table>
+      <tr><th></th><th>mAP (73.3%)</th><th>Expert F1 (91.75%)</th><th>SUS (77.0)</th></tr>
+      <tr><td>What it assesses</td><td>Detection vs. expert labels</td><td>Correctness at deploy threshold</td><td>Ease of use</td></tr>
+      <tr><td>Evaluator</td><td>Automated benchmark</td><td>Human experts</td><td>Farmers</td></tr>
+      <tr><td>Sample size</td><td>1,952 images</td><td>21 field images</td><td>10 participants</td></tr>
+    </table>
+    <div class="highlight-box">
+      <strong>Important:</strong> These results complement each other. They should <strong>not</strong> be reported or interpreted as a single accuracy percentage.
+    </div>
+    <div class="footer"><span>PINYA-PIC</span><span>14 / 16</span></div>
+  </div>
+
+  <!-- 15 Demo -->
+  <div class="slide title-center">
+    <h2>Live Demonstration</h2>
+    <h1>Mobile Application Demo</h1>
+    <ul style="text-align:left;margin:0 auto;">
+      <li>Scan a leaf photograph — on-device detection</li>
+      <li>Dense, sparse, and pest-free cases</li>
+      <li>Per-detection confidence scores</li>
+      <li>Save to field with GPS location</li>
+      <li>Offline operation</li>
+    </ul>
+    <div class="footer" style="border:none;justify-content:center;gap:2rem;">
+      <span>PINYA-PIC</span><span>15 / 16</span>
+    </div>
+  </div>
+
+  <!-- 16 Close -->
+  <div class="slide title-center">
+    <span class="badge">Work in Progress</span>
+    <h1>Summary &amp; Next Steps</h1>
+    <ul style="text-align:left;margin:1.5rem auto 0;">
+      <li>Version 16 achieves <strong class="metric">73.3% mAP@0.5</strong> — comparable to published pest-detection studies</li>
+      <li>System is <strong>usable</strong> (SUS 77.0) and <strong>validated by experts</strong> in the field (91.75% F1)</li>
+      <li><strong>Ongoing:</strong> improve recall · expert re-validation on Version 16 · continued training</li>
+    </ul>
+    <p style="font-size:1.5rem;color:#86efac;margin-top:2.5rem;">Thank you. We welcome your questions and feedback.</p>
+    <div class="footer" style="border:none;justify-content:center;gap:2rem;">
+      <span>PINYA-PIC — Panel Progress Report</span>
+      <span>16 / 16</span>
+    </div>
+  </div>
+
+  <p class="nav-hint">Space or → next · ← back · F11 fullscreen · Graphs: assets/v16_selffix/</p>
+
+  <script>
+    const slides = [...document.querySelectorAll(".slide")];
+    let i = 0;
+    function show(n) {
+      i = (n + slides.length) % slides.length;
+      slides.forEach((s, j) => s.classList.toggle("active", j === i));
+    }
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowRight" || e.key === " " || e.key === "PageDown") {
+        e.preventDefault();
+        show(i + 1);
+      }
+      if (e.key === "ArrowLeft" || e.key === "PageUp") {
+        e.preventDefault();
+        show(i - 1);
+      }
+      if (e.key === "Home") { e.preventDefault(); show(0); }
+      if (e.key === "End") { e.preventDefault(); show(slides.length - 1); }
+    });
+    show(0);
+  </script>
+</body>
+</html>

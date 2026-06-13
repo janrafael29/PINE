@@ -1,0 +1,56 @@
+flowchart TD
+    subgraph INIT[Initialization]
+        A1[DetectionScreen initState] --> B1[DetectionFlowController initialize]
+        B1 --> C1[InferenceService initialize]
+        B1 --> D1[DatabaseService initialize SQLite]
+        B1 --> E1[CameraService initialize]
+        B1 --> F1[GeoService check permissions]
+    end
+
+    subgraph CAPTURE[Capture]
+        G1[User taps Capture] --> H1[captureAndDetect]
+        H1 --> I1[CameraService takePicture]
+        I1 --> J1[Image bytes]
+    end
+
+    subgraph INFER[Inference]
+        J1 --> K1[runInference]
+        K1 --> L1[Preprocess image]
+        L1 --> M1[TFLite YOLO]
+        M1 --> N1[Parse output]
+        N1 --> O1[Apply NMS]
+        O1 --> P1[DetectionResult]
+    end
+
+    subgraph LOCATION[Location and geofence]
+        P1 --> Q1[getCurrentPosition]
+        Q1 --> R1{GPS success}
+        R1 -->|No| S1[Failure outcome]
+        S1 --> T1[Show error and retry]
+        T1 --> G1
+        R1 -->|Yes| U1[get lat lng]
+        U1 --> V1[getAllLands]
+        V1 --> W1[findLandForPoint]
+    end
+
+    subgraph PATHA[Path A standalone local only]
+        W1 --> X1[saveDetectionImage]
+        X1 --> Y1[insertDetection to SQLite detection]
+        Y1 --> Z1[Success outcome]
+    end
+
+    subgraph PATHB[Path B field linked save flow]
+        W1 --> A2[insertCapturedPhoto]
+        A2 --> B2[enqueueUpload]
+        B2 --> C2[syncInBackground]
+        C2 --> D2[Success outcome]
+    end
+
+    subgraph RESULT[Result display]
+        Z1 --> E2[Update UI]
+        D2 --> E2
+        E2 --> F2[Draw boxes]
+        E2 --> G2[Show coordinates]
+        E2 --> H2[Show land name]
+        E2 --> I2[Show outside boundary warning]
+    end

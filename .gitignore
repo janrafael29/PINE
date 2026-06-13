@@ -1,0 +1,114 @@
+# Bundle script staging (make_agent_bundle.ps1); safe if a run is killed mid-zip
+/_bz_*/
+
+# Supabase CLI binary (scripts/install_supabase_cli.ps1)
+/tools/supabase-cli/
+
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+Thumbs.db
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code
+.vscode/
+
+# Flutter run / tooling logs at repo root
+/flutter_*.log
+/logs/
+
+# JVM / Gradle crash dumps (local only)
+/android/hs_err_pid*.log
+/android/.gradle/kotlin/errors/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.flutter-plugins
+.pub-cache/
+.pub/
+/build/
+/coverage/
+*.lock
+!pubspec.lock
+.packages
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android
+/android/app/debug
+/android/app/profile
+/android/app/release
+.gradle/
+/local.properties
+.externalNativeBuild
+.cxx
+/captures
+/android/app/build/
+/android/build/
+
+# Keys and secrets (NEVER commit)
+*.keystore
+*.jks
+*.key
+google-services.json
+
+# APKs (built artifacts)
+*.apk
+*.aab
+
+# Python
+venv/
+env/
+__pycache__/
+
+# ML training & datasets (local only; app ships assets/model/*.tflite)
+/runs/
+/datasets/
+datasets.bak.*/
+/*.pt
+/*.zip
+calibration_image_sample_data*.npy
+/vast_upload/
+/vast_download/
+/field_batches/
+/field_import/
+/field_staging/
+/fix_sets/
+/results/
+/annotation_new/
+/mealybug.v10-8th-yolo26n.yolo26/
+
+# IDE / local tooling
+.cursor/
+.qodo/
+
+# Placeholder / scratch assets
+/Placeholder pics/
+
+# Admin web local Supabase config (copy from admin/config.example.js)
+/admin/config.js
+
+# Netlify local link state (site id from deploy)
+/admin/.netlify/

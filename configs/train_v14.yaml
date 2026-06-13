@@ -1,0 +1,59 @@
+# mealybug_v14 = YOLO26s + 1280px + all optimizations
+# Target: 80% mAP@0.5
+#
+# Changes from v13afix:
+#   - Architecture: YOLO26n → YOLO26s (9.6M params, ~20MB)
+#   - imgsz: 640 → 1280 (4x pixels for small objects)
+#   - epochs: 80 → 200 (longer training)
+#   - patience: 15 → 50 (don't exit early)
+#   - iou (NMS): 0.6 → 0.45 (preserve overlapping detections in clusters)
+#   - warmup_epochs: 2 → 5 (stabilize AdamW)
+#   - close_mosaic: 10 → 30 (mosaic runs 170/200 epochs)
+#   - copy_paste: 0 → 0.3 (paste instances across images)
+#   - scale: 0.5 → 0.9 (aggressive multi-scale training)
+#   - rect: true → false (force square padding for scale variation)
+#   - box: 7.5 → 10.0 (prioritize tight localization)
+#   - lr0: 0.0003 → 0.0001 (slower, more precise with 200 epochs)
+#   - lrf: 0.01 → 0.005 (lower end learning rate)
+#   - freeze: 0 → 10 (freeze backbone initially)
+#   - Deploy at 640px for mobile speed
+
+name: mealybug_v14
+model: yolo26s.pt
+data: datasets/mealybug_v13afix/data.yaml
+weights: runs/retrain/mealybug_v13afix/weights/best.pt
+
+epochs: 200
+imgsz: 1280
+batch: 32            # 2x RTX 5090 (64GB total)
+device: "0,1"        # dual GPU
+workers: 16
+
+optimizer: AdamW
+lr0: 0.0001
+lrf: 0.005
+cos_lr: true
+warmup_epochs: 5
+weight_decay: 0.0005
+patience: 50
+freeze: 10           # freeze first 10 backbone layers initially
+
+# Loss weights
+box: 10.0            # increased from 7.5 — prioritize localization for small objects
+cls_gain: 1.0
+dfl: 1.5
+
+# Augmentation
+dropout: 0.1
+close_mosaic: 30     # mosaic active for epochs 1-170, real images for 171-200
+copy_paste: 0.3      # paste mealybug instances across images
+scale: 0.9           # aggressive multi-scale (10%-190% of imgsz)
+rect: false          # force square padding for full scale variation
+
+# NMS / inference
+conf: 0.25
+iou: 0.45            # lower NMS threshold — preserve clustered detections
+
+# Export (deploy at 640 for mobile speed)
+export_imgsz: 640
+no_export: true

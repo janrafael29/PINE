@@ -1,0 +1,32 @@
+flowchart TD
+    A[FeedbackScreen loads] --> B[Show feedback options]
+    B --> C{User choice}
+
+    subgraph EMAIL[Email option]
+        C -->|Send via Email| D[Launch mailto intent]
+        D --> E{Launch success}
+        E -->|Yes| F[Email app opens]
+        E -->|No| G[Show copy email dialog]
+        G --> H[Copy email to clipboard]
+        H --> I[Show confirmation message]
+    end
+
+    subgraph FORM[In app feedback form]
+        C -->|Feedback Form| J[Navigate to FeedbackFormScreen]
+        J --> K[User enters name email message]
+        K --> L[Submit form]
+        L --> M[Send request to Apps Script endpoint]
+        M --> N{Request success}
+        N -->|Yes| O[Show success snackbar]
+        N -->|No| P[Show error snackbar]
+        P --> Q[Allow retry]
+        Q --> L
+    end
+
+    subgraph NOTE[Rate option]
+        R[Rate app button not present in current screen]
+    end
+
+    F --> S[Return to feedback screen]
+    I --> S
+    O --> S

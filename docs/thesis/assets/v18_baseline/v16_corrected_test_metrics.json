@@ -1,0 +1,33 @@
+{
+  "captured_at": "2026-06-10T13:42:11.705957+00:00",
+  "phase": "V18 Phase 0 baseline lock",
+  "model": "runs/retrain/mealybug_v16_selffix/weights/best.pt",
+  "archive": "runs/retrain/mealybug_v16_selffix/weights/best_v16_baseline_archive.pt",
+  "ground_truth": "labels_v16_corrected (eval staging junction)",
+  "data_yaml": "runs/calibration/data_v16_corrected_test.yaml",
+  "protocol": {
+    "split": "test",
+    "images": 1952,
+    "conf": 0.001,
+    "iou": 0.6,
+    "imgsz": 1280
+  },
+  "metrics": {
+    "mAP50": 0.6648,
+    "mAP50_pct": 66.48,
+    "mAP50_95": 0.3683,
+    "mAP50_95_pct": 36.83,
+    "precision": 0.7992,
+    "precision_pct": 79.92,
+    "recall": 0.5881,
+    "recall_pct": 58.81,
+    "f1": 0.6776,
+    "f1_pct": 67.76
+  },
+  "expected_headline": {
+    "mAP50_pct": 73.3,
+    "precision_pct": 80.6,
+    "recall_pct": 64.7,
+    "mAP50_95_pct": 40.7
+  }
+}

@@ -1,0 +1,279 @@
+═══════════════════════════════════════════════════════════════════════════════
+  V14 TRAINING + ENSEMBLE PIPELINE — Target 80% mAP@0.5
+  Hardware: 2x RTX 5090 (64GB VRAM)
+  Strategy: Clean Data + Bigger Model + Hybrid NMS+WBF Ensemble
+═══════════════════════════════════════════════════════════════════════════════
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  OVERVIEW
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  v13afix (current):     61.0% mAP@0.5 (single model, YOLO26n, 640px)
+  
+  Target:                80%+ mAP@0.5
+
+  How we get there:
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │  Step 1: Auto-fix annotations              +3-5pp  → ~64-66%       │
+  │  Step 2: Train YOLO26s @ 1280 + all HP     +8-12pp → ~72-77%       │
+  │  Step 3: Hybrid NMS+WBF Ensemble           +5-8pp  → ~77-85%       │
+  │                                                                     │
+  │  TOTAL EXPECTED:                            80%+ ✓                  │
+  └─────────────────────────────────────────────────────────────────────┘
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  STEP 1: AUTO-FIX ANNOTATIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Command:
+    python scripts/auto_fix_annotations.py --apply --no-remove --no-tighten
+
+  What it does:
+    - Runs v13afix model on all 13,664 training images
+    - Finds high-confidence predictions (>50%) with no ground-truth label
+    - Auto-adds ~2,000 missing annotations (extrapolated from 303/2000 sample)
+    - Does NOT delete any existing labels (conservative/safe)
+    - Backs up originals to runs/audit/labels_backup/
+
+  Dry-run results (2,000 image sample):
+    Labels to ADD:        303 (~15% of images had missing annotations)
+    Labels to REMOVE:     2,686 (NOT doing this — most are real tiny bugs)
+    Labels to TIGHTEN:    26 (skipping — low impact)
+
+  Time: ~30-45 min on 2x RTX 5090
+  Expected gain: +3-5pp (model stops being penalized for correct detections)
+
+  To preview first:
+    python scripts/auto_fix_annotations.py --dry-run
+
+  To undo:
+    Copy runs/audit/labels_backup/ back to datasets/mealybug_v13afix/train/labels/
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  STEP 2: TRAIN V14 (YOLO26s @ 1280, ALL OPTIMIZATIONS)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Command:
+    python scripts/train_v14.py --batch 32
+
+  Architecture: YOLO26s (9.6M params, ~20MB)
+  Config file:  configs/train_v14.yaml
+
+  All changes from v13afix:
+  ┌────────────────────┬──────────────┬──────────────┬─────────────────────────┐
+  │ Parameter          │ v13afix      │ v14          │ Why                     │
+  ├────────────────────┼──────────────┼──────────────┼─────────────────────────┤
+  │ model              │ YOLO26n      │ YOLO26s      │ 3.7x more capacity     │
+  │ imgsz              │ 640          │ 1280         │ 4x pixels for tiny bugs │
+  │ epochs             │ 80           │ 200          │ More time to converge   │
+  │ patience           │ 15           │ 50           │ Don't exit early        │
+  │ iou (NMS)          │ 0.6          │ 0.45         │ Preserve cluster boxes  │
+  │ warmup_epochs      │ 2            │ 5            │ Stabilize AdamW         │
+  │ close_mosaic       │ 10           │ 30           │ Mosaic longer @ 200ep   │
+  │ copy_paste         │ 0            │ 0.3          │ Paste instances across  │
+  │ scale              │ 0.5          │ 0.9          │ Aggressive multi-scale  │
+  │ rect               │ true         │ false        │ Force square for scale  │
+  │ box                │ 7.5          │ 10.0         │ Prioritize localization │
+  │ lr0                │ 0.0003       │ 0.0001       │ Slower, more precise    │
+  │ lrf                │ 0.01         │ 0.005        │ Lower end LR            │
+  │ freeze             │ 0            │ 10           │ Freeze backbone first   │
+  │ batch              │ 16           │ 32           │ 2x RTX 5090 capacity   │
+  │ device             │ "0"          │ "0,1"        │ Dual GPU                │
+  │ workers            │ 8            │ 16           │ Faster data loading     │
+  └────────────────────┴──────────────┴──────────────┴─────────────────────────┘
+
+  Time: ~2-3 hours on 2x RTX 5090
+  Expected gain: +8-12pp over v13afix single model
+
+  To resume if interrupted:
+    python scripts/train_v14.py --resume
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  STEP 3: EVALUATE — SINGLE MODEL BASELINE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Native test set (1,952 images):
+    python scripts/evaluate_model_accuracy.py ^
+      --model runs/retrain/mealybug_v14/weights/best.pt ^
+      --data datasets/mealybug_v13afix/data.yaml ^
+      --imgsz 1280
+
+  Fixed comparison set (462 images, for v2→v14 lineage):
+    python scripts/evaluate_model_accuracy.py ^
+      --model runs/retrain/mealybug_v14/weights/best.pt ^
+      --data mealybug.v10-8th-yolo26n.yolo26/data.yaml ^
+      --imgsz 1280
+
+  TTA evaluation (quick +2-3pp):
+    python scripts/eval_v14_tta.py
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  STEP 4: HYBRID NMS+WBF ENSEMBLE (MAXIMUM mAP)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Command (full evaluation):
+    python scripts/ensemble_eval.py ^
+      --model-a runs/retrain/mealybug_v13afix/weights/best.pt ^
+      --model-b runs/retrain/mealybug_v14/weights/best.pt
+
+  Quick test (100 images first):
+    python scripts/ensemble_eval.py ^
+      --model-b runs/retrain/mealybug_v14/weights/best.pt ^
+      --limit 100
+
+  How the Hybrid NMS+WBF works:
+
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │  STAGE 1: NMS per source (remove duplicates within each model)      │
+  │                                                                     │
+  │  Source 1: Model A (v13afix nano) @ 1280   → NMS → clean boxes     │
+  │  Source 2: Model A @ 640 (different scale)  → NMS → clean boxes     │
+  │  Source 3: Model A + TTA (flipped)          → NMS → clean boxes     │
+  │  Source 4: Model A on tiles (4× 640 crops)  → NMS → clean boxes     │
+  │  Source 5: Model B (v14 small) @ 1280       → NMS → clean boxes     │
+  │  Source 6: Model B + TTA                    → NMS → clean boxes     │
+  │                                                                     │
+  ├─────────────────────────────────────────────────────────────────────┤
+  │  STAGE 2: WBF across sources (fuse multi-model agreement)           │
+  │                                                                     │
+  │  All clean boxes → cluster by IoU overlap                           │
+  │  Per cluster:                                                       │
+  │    - Box coords = weighted average (tighter localization)           │
+  │    - Score = max(conf) × (agreement_ratio)^0.3                     │
+  │                                                                     │
+  │  Agreement boost example:                                           │
+  │    4/6 sources detect same bug @ conf [0.45, 0.52, 0.38, 0.61]     │
+  │    Final score = 0.61 × (4/6)^0.3 = 0.61 × 0.87 = 0.53           │
+  │    Final box = weighted average of 4 boxes (tighter than any one)  │
+  │                                                                     │
+  ├─────────────────────────────────────────────────────────────────────┤
+  │  WHY HYBRID > EITHER ALONE:                                         │
+  │                                                                     │
+  │  NMS only:   Keeps 1 box, discards useful info from other models    │
+  │  WBF only:   Can average in per-source duplicates (noisy)           │
+  │  HYBRID:     Stage 1 cleans noise, Stage 2 fuses clean signals      │
+  │              → Tightest boxes + highest confidence + best recall     │
+  └─────────────────────────────────────────────────────────────────────┘
+
+  Expected gain: +5-8pp over single model evaluation
+  Time: ~15-30 min for full test set on 2x RTX 5090
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  DEPLOYMENT OPTIONS (for the mobile app)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Option A: Single model (simplest)
+  ┌──────────────────────────────────────────────────────────────┐
+  │  Model: v14 YOLO26s TFLite @ 640px                           │
+  │  Size:  ~20 MB                                               │
+  │  Speed: 400-700ms                                            │
+  │  mAP:   ~72-77% (single model, no ensemble)                 │
+  └──────────────────────────────────────────────────────────────┘
+
+  Option B: Dual model ensemble (best accuracy)
+  ┌──────────────────────────────────────────────────────────────┐
+  │  Models: v13afix nano (5.4MB) + v14 small (20MB)             │
+  │  Size:   ~25 MB total                                        │
+  │  Speed:  500-900ms (run both, merge with NMS)                │
+  │  mAP:    ~75-80%                                             │
+  │                                                              │
+  │  How: run both TFLite models sequentially in Flutter,        │
+  │  merge boxes with simple IoU-based NMS on-device             │
+  └──────────────────────────────────────────────────────────────┘
+
+  Option C: Single model + on-device tiling
+  ┌──────────────────────────────────────────────────────────────┐
+  │  Model: v14 YOLO26s TFLite @ 640px                           │
+  │  Size:  ~20 MB                                               │
+  │  Speed: 1.0-1.5s (run on full + 2 crops, merge)             │
+  │  mAP:   ~75-80%                                             │
+  │                                                              │
+  │  How: split image into overlapping crops, run model on each, │
+  │  merge all predictions with NMS                              │
+  └──────────────────────────────────────────────────────────────┘
+
+  Option D: Maximum (dual model + tiling)
+  ┌──────────────────────────────────────────────────────────────┐
+  │  Models: v13afix nano + v14 small                            │
+  │  Size:   ~25 MB                                              │
+  │  Speed:  1.5-2.5s                                            │
+  │  mAP:    ~78-83%                                             │
+  │                                                              │
+  │  Trade-off: noticeable wait, but maximum on-device accuracy  │
+  └──────────────────────────────────────────────────────────────┘
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  MODEL EVOLUTION (updated lineage)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Version    Architecture   ImgSz   mAP@0.5 (462-img)   Key Change
+  ─────────────────────────────────────────────────────────────────────
+  v2         YOLO (legacy)  640     21.1%                ~2.3k images
+  v10        YOLO26n        640     42.1%                16k augmented
+  v11        YOLO26n        640     43.0%                Label cleaning
+  v12        YOLO26n        1024    43.8%                Higher res train
+  v13afix    YOLO26n        640     56.7%                +Va +fix500 +clean
+  v14        YOLO26s        1280    ???%  (target 70+)   Architecture + all HP
+  v14+ens    YOLO26s+n      1280    ???%  (target 80+)   Hybrid NMS+WBF ensemble
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  FILES REFERENCE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  configs/train_v14.yaml              Training config (YOLO26s, 1280, all HP)
+  scripts/auto_fix_annotations.py     Annotation auto-repair (pseudo-labeling)
+  scripts/audit_annotations.py        Annotation audit (diagnostic/read-only)
+  scripts/train_v14.py                Training script (dual GPU, batch 32)
+  scripts/eval_v14_tta.py             TTA evaluation
+  scripts/ensemble_eval.py            Full Hybrid NMS+WBF ensemble evaluation
+  scripts/evaluate_model_accuracy.py  Standard mAP evaluation
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  QUICK START — COPY-PASTE COMMANDS (run in order)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  cd D:\old_PINE
+
+  # Step 1: Fix annotations (~30-45 min)
+  python scripts/auto_fix_annotations.py --apply --no-remove --no-tighten
+
+  # Step 2: Train v14 (~2-3 hours)
+  python scripts/train_v14.py --batch 32
+
+  # Step 3: Standard eval
+  python scripts/evaluate_model_accuracy.py --model runs/retrain/mealybug_v14/weights/best.pt --data datasets/mealybug_v13afix/data.yaml --imgsz 1280
+
+  # Step 4: TTA eval (quick boost)
+  python scripts/eval_v14_tta.py
+
+  # Step 5: Full ensemble eval (maximum mAP)
+  python scripts/ensemble_eval.py --model-b runs/retrain/mealybug_v14/weights/best.pt --limit 100
+  python scripts/ensemble_eval.py --model-b runs/retrain/mealybug_v14/weights/best.pt
+
+  # Step 6: Eval on fixed 462-image set (for thesis comparison table)
+  python scripts/evaluate_model_accuracy.py --model runs/retrain/mealybug_v14/weights/best.pt --data mealybug.v10-8th-yolo26n.yolo26/data.yaml --imgsz 1280
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  TOTAL TIME ESTIMATE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Step 1 (annotations):    30-45 min
+  Step 2 (training):       2-3 hours
+  Step 3 (eval):           5 min
+  Step 4 (TTA):            10 min
+  Step 5 (ensemble):       15-30 min
+  Step 6 (comparison):     5 min
+  ─────────────────────────────────
+  TOTAL:                   ~3.5-4.5 hours start to finish
+
+═══════════════════════════════════════════════════════════════════════════════

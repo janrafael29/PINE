@@ -1,0 +1,13 @@
+# Optional: deploy with Netlify for a shorter public URL.
+#   npx netlify-cli login
+#   cd admin && npx netlify-cli deploy --prod
+
+[build]
+  publish = "."
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"

@@ -1,0 +1,477 @@
+═══════════════════════════════════════════════════════════════════════════════
+  PINE-3: FINAL DEFENSE PRESENTATION — IMPROVED SCRIPT
+  PINYA-PIC | Mealybug Detection | YOLO26n | MSU-GenSan
+═══════════════════════════════════════════════════════════════════════════════
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  GENA — Parts 1 through 7
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+PART 1: TITLE
+─────────────
+
+"Good day, esteemed members of the panel, our advisor, and guests. I am
+Gename Bacay, and together with my co-proponents, Angelei Morillo and
+Janrafael Morga, we are pleased to present our final defense for our study
+titled:
+
+PINYA-PIC: A Machine Learning-Driven Mobile Application for Mealybug
+Infestation Detection with Integrated Geotagging and Geofencing Features.
+
+This study was conceptualized and conducted at Mindanao State University–
+General Santos, aimed at addressing pressing technological gaps in precision
+agriculture for pineapple farming in Region XII."
+
+
+PART 2: BACKGROUND AND CONTEXT
+──────────────────────────────
+
+"To understand the motivation behind this study, we must look at the
+current state of pineapple production.
+
+The Philippines is a major pineapple exporter, and South Cotabato is one of
+the country's key production areas. However, yields are constantly
+threatened by pests — most notably, mealybugs. These are invasive,
+sap-sucking insects that cause severe crop damage, stunt plant growth, and
+introduce pineapple mealybug wilt-associated viruses.
+
+The critical challenge is detection. Mealybugs are extremely small — often
+just 2 to 4 millimeters — and they hide deep within the crevices of the
+plant's leaves. They cluster together and are covered in a white, waxy
+coating that makes them difficult to distinguish from plant tissue. Because
+they multiply rapidly, if an infestation is not caught early, it spreads
+across entire fields within weeks, leading to significant financial losses
+for farmers.
+
+Currently, farmers rely entirely on manual visual inspection — a process
+that is slow, labor-intensive, and prone to human error, especially for
+pests this small."
+
+
+PART 3: PROBLEM STATEMENT
+─────────────────────────
+
+"This study addresses three key problems:
+
+First, there is a lack of real-time pest detection tools available to
+small-scale pineapple farmers. Existing agricultural AI solutions target
+general crop diseases — none specifically addresses mealybug detection in
+pineapples.
+
+Second, existing systems lack location-based monitoring. Without geospatial
+tracking, farmers cannot map where infestations occur or monitor how they
+spread over time.
+
+Third, current detection relies on manual inspection, which is slow, prone
+to error, and cannot provide quantified data for decision-making.
+
+These challenges highlight the need for an automated, mobile, and
+location-aware detection solution."
+
+
+PART 4: GENERAL OBJECTIVES
+──────────────────────────
+
+"Our study has three main objectives:
+
+First — to develop and integrate a YOLO26n-based object detection model,
+deployed in TensorFlow Lite format, for real-time on-device detection of
+mealybug presence and population density.
+
+Second — to build a field-focused Android mobile application using Flutter,
+with offline-first architecture, that integrates GPS geotagging,
+point-in-polygon geofencing, historical data visualization, and severity-
+based analytics for farmers.
+
+Third — to evaluate the system's usability through the System Usability
+Scale framework with actual pineapple farmers in Polomolok, South Cotabato."
+
+
+PART 5: SIGNIFICANCE OF THE STUDY
+──────────────────────────────────
+
+"This study is significant for several reasons:
+
+For farmers, it provides an accessible tool for early pest detection —
+reducing reliance on manual inspection and enabling faster response to
+infestations.
+
+For agricultural agencies, the system generates geospatial data and
+severity maps that can inform region-wide pest monitoring strategies.
+
+For researchers, this study contributes to the growing body of literature
+on lightweight AI models for precision agriculture in developing-country
+contexts.
+
+The system also promotes sustainable agriculture by enabling targeted
+intervention — potentially reducing blanket pesticide application — and
+aligns with Sustainable Development Goals: Zero Hunger, Industry Innovation
+and Infrastructure, Responsible Consumption and Production, and Life on
+Land."
+
+
+PART 6: SCOPE
+─────────────
+
+"The scope of this study covers four areas:
+
+AI Model Development — we trained a YOLO26n object detection model on over
+19,000 Roboflow-managed images and optimized it into a 5.42-megabyte
+TensorFlow Lite model for real-time, on-device inference.
+
+Mobile and Data Infrastructure — we developed an offline-first Flutter
+application with SQLite for local storage and Supabase for cloud
+synchronization when internet is available.
+
+Geospatial and Field Analytics — we implemented a ray-casting algorithm for
+point-in-polygon geofencing, GPS/EXIF geotagging, and OpenStreetMap-based
+visualization with interactive trend charts.
+
+Usability Assessment — we evaluated the application using the SUS framework
+through hands-on testing with 10 local pineapple farmers."
+
+
+PART 7: SYSTEM LIMITATIONS
+──────────────────────────
+
+"We acknowledge the following limitations:
+
+Geographic and Pest Constraints — the system is confined strictly to
+mealybug detection within pineapple plantations in Polomolok, South
+Cotabato. It is not designed for other pest types or crop varieties.
+
+Technical Dependencies — detection performance relies on device-specific
+hardware capabilities. Budget devices may experience slightly longer
+inference times, up to 280 milliseconds per image. GPS accuracy depends
+on the device's positioning hardware.
+
+Data Recovery Limits — cloud restoration is restricted to fully
+synchronized items. Bounding-box confidence scores for individual
+detections are stored locally and cannot be recovered after app
+reinstallation if not previously synced.
+
+I will now hand over to Angelei, who will discuss our literature review,
+methodology, and system design."
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ANGELEI — Parts 8 through 12
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+PART 8: LITERATURE REVIEW
+─────────────────────────
+
+"Thank you, Gena.
+
+Our literature review examined existing research across three domains:
+
+In Machine Learning and Deep Learning Evolution — we found that
+agricultural pest detection has advanced from traditional Convolutional
+Neural Networks to real-time object detection models. Studies by Li et al.
+(2022) and Chen et al. (2021) demonstrate that YOLO-based architectures
+achieve the best balance of speed and accuracy for pest detection tasks.
+
+In terms of The YOLO Advantage — YOLO models enable single-pass detection,
+making them suitable for resource-constrained mobile environments. The
+YOLO26n variant, released in 2025, offers architectural improvements over
+previous versions while maintaining a nano-scale model size optimized for
+edge deployment.
+
+In Geospatial and Architectural Integration — prior research shows that
+combining mobile photo capture with geotagging enhances agricultural data
+tracking (Soni et al., 2021), while offline-first local architectures using
+SQLite sync queues provide system resilience in remote field environments
+where cellular connectivity is unreliable.
+
+In Validated Usability Frameworks — the System Usability Scale, established
+by Brooke (1996) and benchmarked by Sauro (2011), provides a reliable and
+standardized instrument for evaluating system acceptability with non-
+technical users."
+
+
+PART 9: RELATED TECHNOLOGY
+──────────────────────────
+
+"We compared PINYA-PIC against four existing agricultural technology
+platforms: Agrio, Cropx, Plantix, and SPIDTECH.
+
+As shown in our comparison table, while these platforms offer pest
+detection or agricultural monitoring individually, none provides all of the
+following: mealybug-specific detection, mealybug population counting,
+geotagging, geofencing, targeted intervention mapping, hybrid monitoring
+with offline capability, and sustainability-focused features — all in a
+single application.
+
+PINYA-PIC is the only system that checks every feature except multi-pest
+detection — which is intentionally outside our scope, as we focused on
+specialization rather than generalization."
+
+
+PART 10: METHODOLOGY
+────────────────────
+
+"Our development followed a Modified Waterfall methodology, structured into
+five phases:
+
+Requirements Gathering — we conducted field interviews with 15 pineapple
+farmers in Polomolok, South Cotabato, to identify operational pain points
+and translate them into user stories.
+
+Design — we established 39 high-fidelity mobile screen mockups and 13
+structural activity diagrams to define the system architecture.
+
+Implementation — we built the mobile application in Flutter across 19
+service layers, integrating the YOLO26n TFLite model for offline detection,
+a ray-casting algorithm for geofencing, and Supabase with Row-Level Security
+for cloud synchronization.
+
+Testing — we employed a dual-track quality assurance strategy combining
+laboratory functional testing with end-to-end field trials involving 10
+local farmers, validating the system's offline functionality and data
+visualizations.
+
+Deployment — we compiled architecture-specific Android APKs, optimized at
+29 to 36 megabytes for entry-level devices, and transitioned the system to
+long-term maintenance."
+
+
+PART 11: SYSTEM FEATURES
+─────────────────────────
+
+"The core features of PINYA-PIC include:
+
+Detection — users capture an image of a pineapple plant, and the app
+instantly processes it through the on-device YOLO26n model, displaying
+bounding boxes around detected mealybugs with confidence scores and a total
+count.
+
+Geospatial Tracking — each detection is automatically tagged with GPS
+coordinates, and the app determines whether the detection falls within a
+registered pineapple field using geofencing.
+
+Field Management — farmers can register field boundaries, edit field
+details, and view detection history for each field.
+
+Analytics Dashboard — the app provides severity maps, trend charts with
+peak highlighting, and field-level statistics to help farmers understand
+infestation patterns over time.
+
+Offline-First Architecture — all features work without internet. Data
+synchronizes to the cloud automatically when connectivity is restored."
+
+
+PART 12: TESTING APPROACH
+─────────────────────────
+
+"The system underwent four types of testing:
+
+Functional Testing — verifying that each feature operates as specified.
+
+Integration Testing — confirming that components work together: detection
+pipeline, geolocation services, database operations, and cloud
+synchronization.
+
+Performance Testing — measuring inference speed across device tiers:
+approximately 150 milliseconds on mid-range devices and 280 milliseconds
+on budget devices.
+
+User Acceptance Testing — where three Department of Agriculture experts
+independently validated detection correctness on 21 field images, and 10
+farmers evaluated the application's usability using the SUS framework.
+
+I will now hand over to Janrafael for our results and discussion."
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  JANRAFAEL — Parts 13 through 17
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+PART 13: MODEL PERFORMANCE RESULTS
+───────────────────────────────────
+
+"Thank you, Angelei.
+
+Let me now present our results, beginning with model performance.
+
+We evaluated the model through two complementary approaches:
+
+First — automated benchmark testing. On a held-out test set of 1,952
+labeled images, the model achieved 72.8% precision, 58.9% recall, and an
+mAP@0.5 of 61.0%. The mAP@0.5:0.95 — which is a stricter metric — was
+29.2%. These are evaluated at the academic standard confidence threshold of
+0.12.
+
+To put this in context: mealybugs are extremely small objects, often under
+20 pixels in an image. Published benchmarks for small-pest detection using
+nano-sized models report 45 to 65% mAP at 0.5. Our 61% places us at the
+upper end of that range.
+
+Second — manual expert validation. Three validators from the Office of the
+Municipal Agriculturist independently reviewed 21 field images — 7 each —
+at the deployed 30% confidence threshold. Results showed:
+
+  Precision: 99.58%
+  Recall: 85.64%
+  F1 Score: 91.75%
+  Accuracy: 85.40%
+
+The key takeaway: what the model detects is almost always correct. The
+99.58% precision means only 1 false positive was observed across all 122
+ground-truth mealybug instances.
+
+These two evaluations measure different things: mAP evaluates bounding-box
+overlap across all confidence levels, while expert validation evaluates
+practical correctness at our deploy threshold. Both confirm the system is
+effective for its intended purpose."
+
+
+PART 14: MODEL EVOLUTION
+────────────────────────
+
+"To demonstrate improvement, we evaluated all model versions on the same
+fixed 462-image test set:
+
+  v2  — our initial model — achieved just 21.1% mAP.
+  v10 — after scaling to 16,000 images — reached 42.1%.
+  v11 — after label cleaning — 43.0%.
+  v12 — trained at higher resolution — 43.8%.
+  v13afix — our final deployed model — 56.7%.
+
+This represents a total improvement of 35.6 percentage points from our
+baseline. The largest single gain, 12.9 points from v12 to v13afix, came
+from incorporating real field data collected during deployment, additional
+augmentation, and systematic label cleaning."
+
+
+PART 15: FIELD DEPLOYMENT RESULTS
+─────────────────────────────────
+
+"During our three-day field deployment in Polomolok, the system processed
+826 detection operations and identified a total of 4,670 mealybugs across
+12 registered pineapple fields.
+
+The average detection confidence was 33.2%. We want to clarify what this
+means: our threshold is 30%, so the system displays all detections at 30%
+and above. Many mealybugs are tiny and partially occluded, resulting in
+confidence scores in the 30 to 50% range. However, our expert validation
+confirmed that even at these confidence levels, precision remains at
+99.58% — meaning low confidence does not mean incorrect detection. It
+simply reflects the inherent difficulty of detecting very small, clustered
+insects."
+
+
+PART 16: USABILITY RESULTS
+───────────────────────────
+
+"For usability evaluation, 10 pineapple farmers completed the System
+Usability Scale questionnaire immediately after hands-on field testing.
+
+Results:
+  Farmer SUS Score: 77.0 out of 100 — rated 'Good,' above the industry
+  benchmark of 68.
+
+Additionally, administrators evaluated the system's management interface
+and dashboard, achieving a SUS score of 82.5 — rated 'Excellent.'
+
+Qualitative feedback highlighted three key strengths:
+
+  First — the offline functionality. Farmers emphasized that being able to
+  capture pest data and save photos without cellular network — and sync to
+  the cloud later — is essential for remote field environments.
+
+  Second — field editing. Farmers appreciated being able to correct field
+  names and boundaries directly within the interface without recreating
+  entire records.
+
+  Third — the severity map and visual analytics. Farmers found the color-
+  coded severity maps and peak-highlighting charts highly intuitive,
+  noting that visual trends were far easier to comprehend and act upon
+  compared to raw numbers."
+
+
+PART 17: CONCLUSION AND RECOMMENDATIONS
+───────────────────────────────────────
+
+"In conclusion, this study successfully developed and deployed a machine
+learning-driven mobile application for mealybug infestation detection.
+
+Our key contributions are:
+
+  One — a specialized YOLO26n detection model achieving 61.0% mAP@0.5
+  on labeled benchmarks and 91.75% F1 score in expert field validation,
+  packaged in a 5.42-megabyte TFLite model suitable for budget devices.
+
+  Two — a complete offline-first mobile system integrating detection,
+  geotagging, geofencing, and severity analytics — validated through 826
+  field detection operations across 12 farms over three days.
+
+  Three — demonstrated usability with SUS scores of 77.0 for farmers and
+  82.5 for administrators, both exceeding the industry benchmark of 68.
+
+For future work, we recommend:
+
+  Expanding the training dataset with more field-collected images to
+  improve recall.
+
+  Testing larger YOLO variants for higher accuracy where device
+  constraints permit.
+
+  Extending the system to cover additional pest types and crop varieties.
+
+  Conducting a larger-scale longitudinal study to measure long-term
+  impact on farmer decision-making.
+
+Thank you. We are now open for questions from the panel."
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  NOTES FOR THE TEAM
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+TRANSITIONS:
+  - Gena ends with: "I will now hand over to Angelei..."
+  - Angelei ends with: "I will now hand over to Janrafael..."
+  - Janrafael ends with: "We are now open for questions."
+
+TIMING (target 20-25 minutes total):
+  - Gena (Parts 1-7): ~7 minutes
+  - Angelei (Parts 8-12): ~7 minutes
+  - Janrafael (Parts 13-17): ~8 minutes
+  - Buffer: 2-3 minutes
+
+WHO ANSWERS WHAT DURING Q&A:
+  - Model/metrics/accuracy questions → Janrafael (knows the numbers)
+  - Methodology/design/architecture → Angelei
+  - Background/objectives/limitations → Gena
+  - If unsure → whoever knows best, but don't talk over each other
+
+KEY NUMBERS EVERYONE MUST KNOW:
+  mAP@0.5 = 61.0%  (native test, 1,952 images)
+  mAP@0.5 = 56.7%  (fixed 462-image comparison set)
+  Expert F1 = 91.75%  (21 field images, 3 validators)
+  Expert Precision = 99.58%  (near-zero false positives)
+  SUS (Farmers) = 77.0
+  SUS (Admins) = 82.5
+  Field ops = 826 detections, 4,670 mealybugs, 12 fields, 3 days
+  Model size = 5.42 MB
+  Threshold = 30%
+  Training images = 19,520 (pool) / 13,664 (training split)
+  Improvement = 21.1% → 56.7% = +35.6pp
+
+SLIDES TO NUMBERS MAPPING:
+  "Expert Validation Result" slide → 99.58%, 85.64%, 91.75%, 85.40%
+  "System Performance Metrics" slide → mention 61.0% mAP, 150-280ms
+  "Related Technologies" slide → PINYA-PIC checks all except multi-pest
+  "User Testing - Farmers" slide → SUS 77.0
+  "User Testing - Admins" slide → SUS 82.5
+
+CONFIDENCE SCORE DEFENSE (if questioned):
+  "33.2% average confidence does NOT mean 33% accuracy. Confidence is
+  how certain the model is about each individual bounding box. Even at
+  30-50% confidence, our expert validation proves 99.58% of those
+  detections are correct. The low confidence reflects object difficulty
+  — tiny, clustered, partially hidden pests — not detection quality."

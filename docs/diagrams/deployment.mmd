@@ -1,0 +1,51 @@
+flowchart TD
+    subgraph DEV[Development Environment]
+        PC[Developer machine]
+        IDE[VS Code or Cursor]
+        FLUTTER[Flutter SDK]
+        DARTDEFINE[Supabase dart define values]
+        ADB[ADB]
+    end
+
+    subgraph TRAIN[Training Environment]
+        YOLO[Ultralytics YOLO training]
+        DATASET[Training dataset]
+        MODEL[TFLite model export]
+    end
+
+    subgraph MOBILE[Mobile Device]
+        APP[Flutter app]
+        UI[Screens and widgets]
+        SVC[Service layer]
+        SQLITE[(SQLite pine db)]
+        LOCALIMG[(Local image storage)]
+        INFER[TFLite runtime]
+        HW[Camera GPS Biometric]
+    end
+
+    subgraph CLOUD[Supabase]
+        SA[Supabase Auth]
+        PG[(Postgres with RLS)]
+        SB[Supabase Storage]
+        B1[detections bucket]
+        B2[avatars bucket]
+    end
+
+    IDE --> FLUTTER
+    FLUTTER --> DARTDEFINE
+    PC --> APP
+    ADB --> APP
+    YOLO --> DATASET
+    YOLO --> MODEL
+    MODEL --> INFER
+    APP --> UI
+    UI --> SVC
+    SVC --> SQLITE
+    SVC --> LOCALIMG
+    SVC --> INFER
+    SVC --> HW
+    SVC --> SA
+    SVC --> PG
+    SVC --> SB
+    SB --> B1
+    SB --> B2

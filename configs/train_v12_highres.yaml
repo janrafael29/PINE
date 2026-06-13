@@ -1,0 +1,35 @@
+# PINYA-PIC mealybug_v12 — high-resolution training preset
+# Used by: scripts/retrain_yolo.py --preset v12-highres
+# Run on Vast (24GB+ GPU); batch 32 @ 1024 may need 40GB+ — drop batch if OOM.
+
+name: mealybug_v12
+data: mealybug.v10-8th-yolo26n.yolo26/data.yaml
+weights: runs/retrain/mealybug_v11/weights/best.pt
+
+epochs: 200
+imgsz: 1024
+batch: 8
+device: "0"
+workers: 8
+
+optimizer: AdamW
+lr0: 0.0005
+lrf: 0.01
+cos_lr: true
+warmup_epochs: 2
+weight_decay: 0.0005
+patience: 0  # 0 = disable early stopping (full 200 epochs)
+
+dropout: 0.15
+box: 7.5
+cls_gain: 1.5
+dfl: 1.5
+close_mosaic: 15
+
+# Used during training validation (not app deploy thresholds)
+conf: 0.30
+iou: 0.7
+
+# Mobile export size (train at 1024, ship TFLite at 640 unless you change the app)
+export_imgsz: 640
+no_export: true  # export on PC after download

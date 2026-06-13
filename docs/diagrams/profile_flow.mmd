@@ -1,0 +1,37 @@
+flowchart TD
+    A[ProfileScreen loads] --> B[Get current auth user]
+    B --> C[Load profiles row]
+    C --> D[Render profile UI]
+    D --> E{User action}
+
+    subgraph EDIT[Edit profile]
+        E -->|Edit Profile| F[Enable edit mode]
+        F --> G[Edit display name]
+        F --> H[Edit phone]
+        G --> I[Save]
+        H --> I
+        I --> J[Upsert profiles row]
+        J --> C
+    end
+
+    subgraph PHOTO[Change photo]
+        E -->|Change Photo| K[Choose source]
+        K --> L{Camera or Gallery}
+        L --> M[Pick image file]
+        M --> N[Upload to avatars bucket]
+        N --> O[Get public URL]
+        O --> P[Update profiles photo_url]
+        P --> C
+    end
+
+    subgraph BIO[Biometric]
+        E -->|Biometric| Q[Check availability]
+        Q --> R{Available}
+        R -->|No| S[Show not available]
+        R -->|Yes| T{Currently enabled}
+        T -->|No| U[Enable biometric]
+        T -->|Yes| V[Disable biometric]
+        U --> W[Save local preference]
+        V --> W
+        W --> C
+    end

@@ -1,0 +1,70 @@
+name: pine
+description: Offline Android mobile application for detecting tiny agricultural pests on plant leaves.
+publish_to: 'none'
+version: 17.0.0+2045
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  intl: ^0.19.0
+  # TensorFlow Lite for on-device inference
+  tflite_flutter: ^0.11.0
+  # Camera access for image capture and preview
+  camera: ^0.10.5+9
+  # Pick image from camera or gallery (for camera/gallery → result flow)
+  image_picker: ^1.1.2
+  # Image processing utilities
+  image: ^4.1.7
+  # Geo-tagging: GPS acquisition
+  geolocator: ^11.0.0
+  # Geo-fencing: offline map rendering
+  flutter_map: ^6.1.0
+  latlong2: ^0.9.0
+  # Local database for Land and Detection records
+  sqflite: ^2.3.2
+  path_provider: ^2.1.2
+  path: ^1.9.0
+  # Runtime permissions
+  permission_handler: ^11.3.0
+  geocoding: ^3.0.0
+  photo_manager: ^3.5.0
+  shared_preferences: ^2.2.2
+  url_launcher: ^6.3.0
+  local_auth: ^2.1.7
+  provider: ^6.1.2
+  # Export (ZIP + CSV) + share
+  archive: ^3.6.1
+  share_plus: ^11.0.0
+  package_info_plus: ^8.0.2
+  supabase_flutter: ^2.12.0
+  app_links: ^6.4.1
+  android_intent_plus: ^6.0.0
+  connectivity_plus: ^6.1.0
+  http: ^1.2.2
+  exif: ^3.3.0
+  flutter_map_cache: ^2.1.0
+  http_cache_file_store: ^2.0.1
+  dio_cache_interceptor: ^4.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  supabase: ^2.10.2
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: assets/placeholder_pics/logo_foreground_fit.png
+  adaptive_icon_background: "#FBF5DB"
+  adaptive_icon_foreground: assets/placeholder_pics/logo_foreground_fit.png
+
+flutter:
+  uses-material-design: true
+  # Model is bundled for offline detection (no network required).
+  assets:
+    - assets/model/
+    - assets/placeholder_pics/

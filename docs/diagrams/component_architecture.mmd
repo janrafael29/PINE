@@ -1,0 +1,62 @@
+flowchart TD
+    subgraph PRES[Presentation Layer]
+        SCREENS[Screens auth dashboard camera fields profile feedback]
+        WIDGETS[Widgets sync indicator custom controls charts]
+        NAV[Navigation routes and auth gate]
+        THEME[Theme material and colors]
+    end
+
+    subgraph CORE[Core Layer]
+        SL[ServiceLocator]
+        AS[AppState with Provider]
+        SCP[SupabaseClientProvider]
+    end
+
+    subgraph SERVICES[Service Layer]
+        subgraph ORCH[Orchestration]
+            DFC[DetectionFlowController]
+            DSC[DashboardStatsCalculator]
+        end
+        subgraph CORE_SVC[Core services]
+            CS[CameraService]
+            IS[InferenceService]
+            GS[GeoService]
+            GFS[GeoFenceService]
+        end
+        subgraph DATA_SVC[Data services]
+            DBS[DatabaseService]
+            RDS[DetectionService]
+            ISS[ImageStorageService]
+            CTS[CloudSyncService]
+        end
+        BIO[BiometricService]
+    end
+
+    subgraph DATA[Data Layer]
+        SQLITE[(SQLite detection captured_photo upload_queue land)]
+        SHPREF[(SharedPreferences)]
+        PG[(Postgres profiles fields detections)]
+        ST[(Storage detections avatars)]
+        AUTH[(Supabase Auth)]
+    end
+
+    PRES --> CORE
+    PRES --> SERVICES
+    SL --> SERVICES
+    SCP --> SERVICES
+    AS --> PRES
+    SERVICES --> DATA
+    DFC --> CS
+    DFC --> IS
+    DFC --> GS
+    DFC --> GFS
+    DFC --> ISS
+    DFC --> DBS
+    DSC --> PG
+    DBS --> SQLITE
+    DBS --> SHPREF
+    RDS --> PG
+    RDS --> ST
+    CTS --> DBS
+    CTS --> RDS
+    SCP --> AUTH

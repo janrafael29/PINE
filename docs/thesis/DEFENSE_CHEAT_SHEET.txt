@@ -1,0 +1,359 @@
+╔══════════════════════════════════════════════════════════════════════════════════╗
+║           THESIS DEFENSE CHEAT SHEET — CHAPTER IV (Section 4.1)                ║
+║     PINE: Pineapple Mealybug Detection | mealybug_v13afix | YOLO26n→TFLite    ║
+╚══════════════════════════════════════════════════════════════════════════════════╝
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  1. CRITICAL NUMBERS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  FINAL MODEL BENCHMARK (Automated — 1,952 images, conf=0.12, IoU=0.45)
+  ┌─────────────────────┬────────────┐
+  │ mAP@0.5             │   61.0%    │  ← PRIMARY HEADLINE
+  │ mAP@0.5:0.95        │   29.2%    │
+  │ Precision            │   72.8%    │
+  │ Recall               │   58.9%    │
+  │ F1 Score             │   65.1%    │
+  └─────────────────────┴────────────┘
+
+  FIXED-SET BENCHMARK (462 images from v10 test — for cross-version comparison)
+  ┌─────────────────────┬────────────┐
+  │ mAP@0.5 (v13afix)   │   56.7%    │
+  │ mAP@0.5 (v12)       │   43.8%    │
+  │ mAP@0.5 (v11)       │   43.0%    │
+  │ mAP@0.5 (v10)       │   42.1%    │
+  │ mAP@0.5 (v2)        │   21.1%    │  ← BASELINE
+  └─────────────────────┴────────────┘
+  Total improvement: +35.6 percentage points (v2 → v13afix)
+
+  EXPERT VALIDATION (Manual — 21 field images, 3 validators, deploy threshold)
+  ┌─────────────────────┬────────────┐
+  │ Grand F1             │   91.75%   │  ← FIELD PERFORMANCE
+  │ Grand Precision      │   99.58%   │  (only 1 FP total!)
+  │ Grand Recall         │   85.64%   │
+  │ Grand Accuracy       │   85.40%   │  (Jaccard, NOT classical)
+  │ Avg Confidence       │   57.33%   │
+  └─────────────────────┴────────────┘
+  Pooled counts: TP=101, FP=1, FN=21, Ground truth=122 instances
+
+  PER VALIDATOR:
+    VAL1: Prec 98.75%  Rec 78.44%  F1 86.92%  Acc 77.71%  Conf 54.50%
+    VAL2: Prec 100.0%  Rec 92.56%  F1 95.91%  Acc 92.56%  Conf 57.75%
+    VAL3: Prec 100.0%  Rec 85.91%  F1 92.41%  Acc 85.91%  Conf 59.75%
+
+  APP & DEPLOYMENT:
+  ┌─────────────────────┬────────────┐
+  │ Model size           │  5.42 MB   │
+  │ Input resolution     │  640x640   │
+  │ Deploy threshold     │  30%       │  (single threshold)
+  │ Benchmark conf       │  12%       │  (Ultralytics default)
+  │ NMS IoU              │  0.45      │
+  │ Inference (mid)      │  ~150 ms   │
+  │ Inference (budget)   │  ~280 ms   │
+  │ Field detections     │  826 ops   │
+  │ Mealybugs counted    │  4,670     │
+  │ Fields tested        │  12        │
+  │ Test duration        │  3 days    │
+  │ SUS score            │  77.0      │  (rated "Good")
+  └─────────────────────┴────────────┘
+
+  TRAINING CONFIG:
+    Architecture:     YOLO26n (Ultralytics 2025)
+    Training images:  13,664
+    Val images:       3,904
+    Test images:      1,952
+    Total pool:       19,520
+    Epochs run:       75 (patience=15, best ~epoch 60)
+    Split:            70/20/10, seed 42
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  2. KEY DISTINCTIONS — DO NOT CONFUSE THESE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  mAP@0.5 (61.0%)                   vs    Expert F1 (91.75%)
+  ─────────────────────────────────────────────────────────────────────
+  Automated (Ultralytics)                  Human expert judgment
+  IoU >= 0.5 box overlap required          "Is box on a mealybug?" (lenient)
+  1,952 images                             12 positive images
+  All confidence >= 0.12                   Only confidence >= 0.30
+  Area under P-R curve                     Single-threshold binary
+  >>> NEVER COMPARE OR EQUATE THESE <<<
+
+  conf=0.12 (Benchmark)              vs    conf=0.30 (Deploy)
+  ─────────────────────────────────────────────────────────────────────
+  Standard for computing mAP                User-facing filter
+  Lets all detections into P-R curve        Only shows confident detections
+  Researcher sees this                      Farmer sees this
+  Precision 72.8%                           Precision ~99%
+
+  Our "Accuracy" = TP/(TP+FP+FN)    vs    Classical = (TP+TN)/(ALL)
+  ─────────────────────────────────────────────────────────────────────
+  No True Negatives (TN is infinite         Requires finite TN
+  in object detection — every empty         Only works for classification
+  pixel is a TN)
+  = Jaccard Index = Threat Score            = Standard accuracy
+  Ref: Padilla et al. 2020                  Not applicable to detection
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  3. FORMULAS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Per-Image:
+    Precision = TP / (TP + FP)
+    Recall    = TP / (TP + FN)
+    F1        = 2 x (Prec x Rec) / (Prec + Rec)
+    Accuracy  = TP / (TP + FP + FN)          [Jaccard Index]
+
+  Validator Average (macro):
+    Validator_Metric = (1/n) x SUM(Image_Metric_i)    for n images
+
+  Grand Average:
+    Grand = (VAL1_avg + VAL2_avg + VAL3_avg) / 3
+
+  WORKED EXAMPLE — VAL1, Image 1:
+    Ground truth = 10 mealybugs
+    Detections = 6 boxes (all correct, 0 false)
+    TP=6  FP=0  FN=10-6=4
+
+    Precision = 6/(6+0) = 100.0%
+    Recall    = 6/(6+4) = 60.0%
+    F1        = 2x(1.0x0.6)/(1.0+0.6) = 75.0%
+    Accuracy  = 6/(6+0+4) = 60.0%
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  4. HARD QUESTIONS & ANSWERS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Q: "61% mAP is low. Other studies report 90%+."
+A: Those detect larger objects (fruits, leaves) with large models. Mealybugs are
+   10-30px, clustered, semi-transparent, on a 5.4MB Nano model. Published
+   small-pest benchmarks (Song et al. 2025) report 45-65% mAP. Our 61% is at
+   the TOP of that range. Expert validation confirms 91.75% F1 in practice.
+
+───────────────────────────────────────────────────────────────────────────────
+
+Q: "Data leakage — v10 test images may be in v13afix training. Invalid?"
+A: Acknowledged in limitations. v10 test (462) is 3.4% of v13afix training
+   (13,664) — too small to inflate mAP by 12.9pp. Proof: the guaranteed-clean
+   native test (1,952 imgs) shows 61.0% — HIGHER than the potentially-leaked
+   set (56.7%). If leakage helped, leaked set would score higher, not lower.
+
+───────────────────────────────────────────────────────────────────────────────
+
+Q: "Only 3 validators, 21 images — statistically too weak."
+A: 95% CI for F1: 91.75% +/- 5.15% = [86.6%, 96.9%]. We don't rely solely on
+   this — it complements the 1,952-image automated benchmark. Validators are
+   domain experts (OMAG staff). 7 scenarios cover key environmental variations.
+   This is cross-validation of operational fitness, not the primary metric.
+
+───────────────────────────────────────────────────────────────────────────────
+
+Q: "No architecture comparison (MobileNet, EfficientDet). How do you know
+    YOLO26n is best?"
+A: Compared YOLO26n vs YOLO11n (65.1% vs 52.6%, same data). Full multi-arch
+   ablation infeasible given compute/time constraints. Selection driven by:
+   (1) TFLite export compatibility, (2) <300ms on budget hardware, (3) YOLO
+   consistently outperforms SSD/EfficientDet on small pests in literature.
+   Acknowledged as future work in Section 5.1.
+
+───────────────────────────────────────────────────────────────────────────────
+
+Q: "How do you know the model converged? No hyperparameter tuning?"
+A: Early stopping triggered at epoch 75 (patience=15, best at ~epoch 60).
+   Val loss plateaued. Used Ultralytics defaults (community-validated on COCO).
+   Our improvements came from DATA quality (cleaning, field images), not HP
+   tuning — proven by v10->v13afix gains from dataset changes alone.
+
+───────────────────────────────────────────────────────────────────────────────
+
+Q: "Precision 99% but recall only 60%. Problem?"
+A: DELIBERATE design choice. False positive = farmer applies unnecessary
+   pesticide (economic + environmental harm). Missed detection = farmer
+   rechecks later (lower cost). We explicitly traded recall for precision via
+   the 30% threshold. This follows "first, do no harm" for advisory tools.
+
+───────────────────────────────────────────────────────────────────────────────
+
+Q: "Why conf=0.12 for benchmark but 0.30 for deploy?"
+A: Different purposes. 0.12 = Ultralytics default for computing full P-R curve
+   (enables fair comparison with literature). 0.30 = operational filter tuned
+   for near-zero false positives in practice. One measures CAPABILITY, the
+   other controls USER EXPERIENCE.
+
+───────────────────────────────────────────────────────────────────────────────
+
+Q: "IoU=0.5 is too strict for tiny objects."
+A: Valid point — this is why mAP@0.5:0.95 is only 29.2%. We report both.
+   mAP@0.5 is the community standard for comparability. Expert validation
+   uses lenient "is box on bug?" criteria → 91.75% F1. Future work: report
+   mAP@0.25 for small-pest-specific evaluation.
+
+───────────────────────────────────────────────────────────────────────────────
+
+Q: "What if farmer takes blurry/dark photo?"
+A: Model produces lower confidence → filtered by 30% threshold → fewer/no
+   detections shown. App includes capture guidance. Offline design allows
+   immediate retake. Average confidence of 57% in field testing shows model
+   is appropriately cautious under real conditions.
+
+───────────────────────────────────────────────────────────────────────────────
+
+Q: "Modified waterfall is wrong for ML. Should be agile."
+A: Waterfall governs THESIS deliverables (proposal→design→implement→test→
+   defense). ML pipeline was iterative (12 model versions with data-driven
+   feedback loops). "Modified" = sequential thesis milestones + iterative
+   technical development. Standard approach for undergraduate CS theses.
+
+───────────────────────────────────────────────────────────────────────────────
+
+Q: "40% miss rate could harm farmers. What about liability?"
+A: App is a DETECTION AID, not diagnostic replacement. Like a medical
+   screening tool — high specificity means flagged areas reliably need
+   attention. App does NOT recommend treatment; it flags presence for
+   farmer's judgment. 60% detection in one photo pass still provides
+   actionable intelligence they lack without the tool.
+
+───────────────────────────────────────────────────────────────────────────────
+
+Q: "Your 'Accuracy' is not standard accuracy. Misleading?"
+A: It's the Jaccard Index. TN is infinite in object detection (every empty
+   pixel = TN), making classical accuracy meaningless (~100% always).
+   Padilla et al. 2020, Everingham et al. 2010 establish this. We can
+   relabel as "Detection Accuracy (Jaccard)" if preferred.
+
+───────────────────────────────────────────────────────────────────────────────
+
+Q: "Inter-rater reliability? Cohen's Kappa?"
+A: Not applicable — each validator assessed DIFFERENT images (7 unique each),
+   not the same images. Kappa/Alpha require multiple raters on the SAME items.
+   The consistency in precision (98.75%-100%) across different images and
+   validators demonstrates reliable near-zero false positive rate.
+
+───────────────────────────────────────────────────────────────────────────────
+
+Q: "This isn't novel. Pest detection apps exist."
+A: Novelty is the INTEGRATED system: offline-first mobile detection +
+   geospatial mapping + severity scoring, specifically for Philippine
+   pineapple mealybugs. No existing tool serves this specific agricultural
+   context with offline capability and local-only data storage.
+
+───────────────────────────────────────────────────────────────────────────────
+
+Q: "Why not just use a pretrained model from the internet?"
+A: Pretrained COCO/ImageNet models don't include mealybug classes. No
+   public mealybug detection model exists. Fine-tuning on domain-specific
+   data is mandatory. Our 12-iteration improvement (21%→61%) demonstrates
+   the necessity of custom training.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  5. DATASET LINEAGE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  v2 (Legacy).............. ~2,328 images, mixed quality, inconsistent labels
+    |
+  v10 (Major upgrade)...... 16,175 train, systematic augmentation
+    |                       923 val / 462 test (FIXED benchmark set)
+    |
+  v11 (Label cleaning)..... Same images, cleaned annotations
+    |                       Removed duplicate/overlapping boxes
+    |
+  v12 (Resolution)......... Trained at 1024px (vs 640 for v10/v11)
+    |                       Minor gain (+0.8pp)
+    |
+  v13afix (DEPLOYED)....... +Va field data (Polomolok farms)
+                            +fix500 (500 real deployment images)
+                            Additional label cleaning
+                            13,664 train / 3,904 val / 1,952 test
+                            Total: 19,520 images
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  6. TABLE QUICK-REFERENCE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Table 4  — Early YOLO11n vs YOLO26n comparison        → Section 4.1.1
+  Table 5  — v13afix native test (61.0% mAP)           → Section 4.1.1
+  Table 6  — v13afix on fixed v10 test (56.7% mAP)     → Section 4.1.2
+  Table 7  — Inference speed                            → Section 4.1.3
+  Table 8  — Model evolution v2→v13afix comparison      → Section 4.1.4
+  Table 9  — Expert validation grand average            → Section 4.1.5
+  Table 14 — 826 detection ops (deployment stats)       → Section 4.3
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  7. REFERENCES TO CITE VERBALLY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Song et al., 2025    — Small pest detection benchmarks (45-65% mAP nano)
+  Padilla et al., 2020 — Object detection metrics (why no TN in detection)
+  Everingham et al., 2010 — PASCAL VOC benchmark (IoU=0.5 standard)
+  Ritter et al., 2015  — Human response time (200-300ms acceptable latency)
+  Powers, 2011         — Precision, Recall, F1 formal definitions
+  ISTQB, 2018          — Independent testing principles (UAT design)
+  Ultralytics, 2025    — YOLO26 architecture and defaults
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  8. DEFENSE TACTICS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  OPENING LINE (if asked to summarize Ch. 4):
+  "Chapter 4 evaluates the system through three complementary lenses:
+   automated benchmark testing on 1,952 images yielding 61% mAP@0.5,
+   manual expert validation on 21 field images yielding 91.75% F1,
+   and usability testing with 10 participants scoring 77 on SUS.
+   Together, these confirm the system meets its objective as a practical
+   mobile detection aid for pineapple mealybugs."
+
+  WHEN CHALLENGED:
+    1. PAUSE. Don't rush.
+    2. CLARIFY which metric they mean (mAP? F1? confidence?)
+    3. ACKNOWLEDGE any valid limitation honestly.
+    4. TRIANGULATE — point to 2-3 other evidence sources.
+    5. CONTEXTUALIZE — compare to published baselines, state constraints.
+
+  IF YOU DON'T KNOW:
+    "That's an excellent question. Based on our evaluation, I don't have
+     that specific data point, but I can reason from [related evidence]..."
+    >>> NEVER FABRICATE NUMBERS <<<
+
+  TRIPLE SHIELD DEFENSE:
+    Shield 1: Acknowledge → "Valid concern. Let me address it..."
+    Shield 2: Triangulate → "Three pieces of evidence support this..."
+    Shield 3: Scope      → "Within the constraints of undergraduate
+                            research / mobile deployment / small-pest
+                            detection literature..."
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  9. WORST-CASE ADVERSARIAL ATTACKS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ATTACK                          YOUR SHIELD
+  ──────────────────────────────  ─────────────────────────────────────────────
+  "Not novel"                     Integrated system: offline + geospatial +
+                                  severity for PH pineapple. No existing tool.
+
+  "Just use pretrained"           No mealybug class in COCO. Custom training
+                                  mandatory. 12 iterations prove this.
+
+  "Sample too small for           Undergrad thesis, not journal paper.
+   publication"                   Appropriate for degree. Acknowledged in 5.1.
+
+  "61% = unreliable"              Unreliable = inconsistent. Precision is 99%.
+                                  61% mAP reflects COMPLETENESS not RELIABILITY.
+
+  "What's new vs existing         Offline-first, local storage, geofenced,
+   pest apps?"                    severity classification, PH mealybug-specific.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  PRINT DOUBLE-SIDED. HIGHLIGHT WEAK AREAS. PRACTICE SAYING NUMBERS ALOUD.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

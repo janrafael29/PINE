@@ -1,0 +1,37 @@
+sequenceDiagram
+    participant User
+    participant PR as PhotoResultFlow
+    participant DBS as DatabaseService
+    participant CTS as CloudSyncService
+    participant RDS as DetectionService
+    participant ST as SupabaseStorage
+    participant PG as PostgresDetections
+
+    User->>PR: Tap Save
+    PR->>DBS: insertCapturedPhoto
+    DBS-->>PR: photoId
+    PR->>DBS: enqueueUpload
+    DBS-->>PR: queued
+    PR->>CTS: syncInBackground
+
+    CTS->>CTS: check auth user and online state
+    alt Online and user exists
+        CTS->>DBS: getPendingUploads limit 10
+        DBS-->>CTS: pending rows
+        loop For each pending row
+            CTS->>CTS: check local image file
+            alt File exists
+                CTS->>RDS: saveDetection image and metadata
+                RDS->>ST: upload image
+                ST-->>RDS: imageUrl
+                RDS->>PG: insert detection row
+                PG-->>RDS: success
+                RDS-->>CTS: upload success
+                CTS->>DBS: markUploadSynced
+            else File missing
+                CTS->>DBS: markUploadFailed
+            end
+        end
+    else Offline or no user
+        CTS-->>CTS: no action queue remains pending
+    end

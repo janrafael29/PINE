@@ -1,0 +1,39 @@
+sequenceDiagram
+    participant User
+    participant DS as DetectionScreen
+    participant DFC as DetectionFlowController
+    participant CS as CameraService
+    participant IS as InferenceService
+    participant GS as GeoService
+    participant GFS as GeoFenceService
+    participant ISS as ImageStorageService
+    participant DBS as DatabaseService
+
+    User->>DS: Tap Capture
+    DS->>DFC: captureAndDetect
+    DFC->>CS: takePicture
+    CS-->>DFC: imageBytes
+    DFC->>IS: runInference imageBytes
+    IS->>IS: preprocess
+    IS->>IS: model inference
+    IS->>IS: parse output and NMS
+    IS-->>DFC: detection result
+    DFC->>GS: getCurrentPosition
+
+    alt GPS Success
+        GS-->>DFC: lat lng
+        DFC->>DBS: getAllLands
+        DBS-->>DFC: lands
+        DFC->>GFS: findLandForPoint
+        GFS-->>DFC: geofence result
+        DFC->>ISS: saveDetectionImage
+        ISS-->>DFC: imagePath
+        DFC->>DBS: insertDetection
+        DBS-->>DFC: detectionId
+        DFC-->>DS: success outcome
+        DS-->>User: render boxes and location
+    else GPS Failure
+        GS-->>DFC: error
+        DFC-->>DS: failure outcome
+        DS-->>User: show error and retry
+    end

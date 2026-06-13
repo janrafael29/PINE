@@ -1,0 +1,34 @@
+flowchart TD
+    subgraph LOAD[Load data]
+        A[MainDashboardScreen loads] --> B[Get user id from auth]
+        B --> C[Query public detections]
+        C --> D[Filter by user_id]
+        D --> E[Order by created_at desc]
+        E --> F[Detection records]
+    end
+
+    subgraph LOCALALT[Local optional path]
+        G[Query SQLite captured_photo] --> H[Local records]
+    end
+
+    subgraph CALC[Calculate stats]
+        F --> I[fromDetectionMaps]
+        H --> J[fromCapturedPhotos]
+        I --> K[Build DashboardStats]
+        J --> K
+        K --> L[imageCount]
+        L --> M[fieldCount]
+        M --> N[infestationRate]
+        N --> O[dailyCounts]
+    end
+
+    subgraph DISPLAY[Render]
+        O --> P[Display stat cards]
+        P --> Q[Render line chart painter]
+        Q --> R[Catmull Rom to Bezier]
+        R --> S[Grid and day labels]
+        S --> T[Gradient fill]
+        T --> U[Peak guide dot label]
+        U --> V[Render My Fields section]
+        V --> W[Long press edit support]
+    end

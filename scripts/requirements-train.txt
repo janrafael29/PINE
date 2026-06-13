@@ -1,0 +1,9 @@
+# Vast / GPU training (install on Linux instance)
+ultralytics>=8.3.0
+PyYAML>=6.0
+torch>=2.1.0
+torchvision>=0.16.0
+
+# Local field-batch augmentation (optional, Windows)
+# albumentations>=1.4.0
+# opencv-python-headless>=4.8.0

@@ -1,0 +1,86 @@
+erDiagram
+    AUTH_USERS ||--o| PROFILES : has
+    AUTH_USERS ||--o{ FIELDS : owns
+    AUTH_USERS ||--o{ DETECTIONS : creates
+    LAND_SQLITE ||--o{ DETECTION_SQLITE : contains
+
+    PROFILES {
+        uuid id PK
+        text phone
+        text email
+        text display_name
+        text photo_url
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    FIELDS {
+        uuid id PK
+        uuid user_id FK
+        text name
+        text address
+        text preview_image_path
+        int image_count
+        timestamptz last_detection
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    DETECTIONS {
+        uuid id PK
+        uuid user_id FK
+        uuid field_id FK
+        text image_url
+        float confidence
+        int count
+        bool has_mealybugs
+        float latitude
+        float longitude
+        timestamptz created_at
+    }
+
+    LAND_SQLITE {
+        int id PK
+        text land_name
+        text polygon_coordinates
+        text created_at
+    }
+
+    DETECTION_SQLITE {
+        int id PK
+        text image_path
+        float latitude
+        float longitude
+        int land_id FK
+        int bug_count
+        float confidence_score
+        text timestamp
+    }
+
+    UPLOAD_QUEUE {
+        int id PK
+        text local_image_path
+        int confidence
+        int count
+        text field_id
+        float latitude
+        float longitude
+        text status
+        int attempts
+        text last_error
+        text created_at
+    }
+
+    CAPTURED_PHOTO {
+        int id PK
+        text local_image_path
+        text field_name
+        text field_id
+        int confidence
+        int count
+        float latitude
+        float longitude
+        text user_id
+        text created_at
+        text exported_at
+    }
