@@ -119,6 +119,23 @@ Use this file to track defense prep, app features, and thesis updates. Mark item
 
 ---
 
+## M. Admin web UI/UX redesign
+
+| # | Task | Priority | Status | Notes / file |
+|---|------|----------|--------|--------------|
+| M1 | Chart catalog mapped to admin data (Data-to-Viz) | P1 | [x] | `ADMIN_UI_REDESIGN.md` |
+| M2 | Donut: positive vs negative proportion | P1 | [x] | Analytics drawer |
+| M3 | Line: 30-day positive trend | P1 | [x] | Analytics drawer |
+| M4 | Horizontal bar: top farms | P1 | [x] | Analytics drawer |
+| M5 | Dashboard home (KPI + chart grid, not drawer-only) | P1 | [ ] | Phase 2 |
+| M6 | Date range filter on analytics (7d/30d/90d) | P1 | [ ] | Phase 2 |
+| M7 | Treemap or stacked bar: field share of positives | P2 | [ ] | Phase 2 |
+| M8 | Bubble map layer on Leaflet | P2 | [ ] | Phase 2 |
+| M9 | Full visual system refresh (tokens, motion, empty states) | P1 | [ ] | Phase 3 |
+| M10 | Netlify deploy after admin UI changes | P0 | [~] | `ADMIN_WEB_DEPLOY.md` |
+
+---
+
 ## F. Communication & expert advice
 
 | # | Task | Priority | Status | Notes / file |
@@ -217,6 +234,7 @@ Work top to bottom; each step unlocks the next for the defense narrative.
 | System architecture | `docs/thesis/SYSTEM_ARCHITECTURE.md` |
 | Mobile map | `lib/screens/detections_map_screen.dart` |
 | Admin console | `admin/app.js`, `admin/index.html` |
+| Admin UI redesign plan | `docs/thesis/ADMIN_UI_REDESIGN.md` |
 | Detection save / sync | `lib/services/detection_service.dart` |
 | Detection tiers | `lib/utils/detection_tiers.dart` |
 | Advisory messages | `lib/data/detection_advisory_messages.dart` |

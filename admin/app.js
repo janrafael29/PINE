@@ -438,7 +438,14 @@
   let cacheExpertResponses = [];
   let cacheFarmInsights = [];
   let capturesDrawerFilter = 'all';
-  let analyticsChartInstance = null;
+  let analyticsChartInstances = [];
+
+  function destroyAnalyticsCharts() {
+    for (let i = 0; i < analyticsChartInstances.length; i++) {
+      analyticsChartInstances[i].destroy();
+    }
+    analyticsChartInstances = [];
+  }
 
   const mapViewState = {
     scope: 'all',
@@ -4514,51 +4521,136 @@
         String(pos30) +
         '</strong><span>Positive (30 days)</span></div>' +
         '</div>' +
-        '<h3 class="pine-drawer-subtitle">7-day positive trend</h3>' +
-        '<canvas id="pine-analytics-chart" height="120"></canvas>' +
-        '<h3 class="pine-drawer-subtitle" style="margin-top:1rem">Top farms by positive sightings</h3>' +
+        '<h3 class="pine-drawer-subtitle">Report mix</h3>' +
+        '<div class="pine-analytics-charts">' +
+        '<div class="pine-analytics-chart-card">' +
+        '<p class="pine-analytics-chart-label">Positive vs negative <span class="pine-analytics-viz-tag">Donut</span></p>' +
+        '<canvas id="pine-analytics-donut" height="140"></canvas>' +
+        '</div>' +
+        '<div class="pine-analytics-chart-card">' +
+        '<p class="pine-analytics-chart-label">30-day positive trend <span class="pine-analytics-viz-tag">Line</span></p>' +
+        '<canvas id="pine-analytics-trend" height="140"></canvas>' +
+        '</div>' +
+        '<div class="pine-analytics-chart-card pine-analytics-chart-card--wide">' +
+        '<p class="pine-analytics-chart-label">Top farms <span class="pine-analytics-viz-tag">Bar</span></p>' +
+        '<canvas id="pine-analytics-farms-bar" height="160"></canvas>' +
+        '</div>' +
+        '</div>' +
+        '<p class="pine-analytics-viz-note">Map uses <strong>choropleth heatmap</strong> + <strong>dot map</strong> (Location). Charts follow Data-to-Viz families — see <code>docs/thesis/ADMIN_UI_REDESIGN.md</code>.</p>' +
+        '<h3 class="pine-drawer-subtitle" style="margin-top:1rem">Top farms (table)</h3>' +
         '<div class="pine-table-wrap"><table class="pine-table"><thead><tr><th>Field</th><th>Owner</th><th>Positive</th><th>Last sighting</th><th></th></tr></thead><tbody>' +
         (topRows || '<tr><td colspan="5" class="pine-muted">No positive reports yet.</td></tr>') +
         '</tbody></table></div>';
       if (typeof Chart !== 'undefined') {
-        const labels = [];
-        const values = [];
-        for (let di = 6; di >= 0; di--) {
+        destroyAnalyticsCharts();
+        const olive = 'rgba(118, 148, 76, 0.85)';
+        const oliveSoft = 'rgba(118, 148, 76, 0.35)';
+        const taupe = 'rgba(192, 182, 172, 0.75)';
+
+        const donutCanvas = document.getElementById('pine-analytics-donut');
+        if (donutCanvas && (pos.length > 0 || negCount > 0)) {
+          analyticsChartInstances.push(
+            new Chart(donutCanvas, {
+              type: 'doughnut',
+              data: {
+                labels: ['Positive', 'Negative'],
+                datasets: [
+                  {
+                    data: [pos.length, negCount],
+                    backgroundColor: [olive, taupe],
+                    borderWidth: 0,
+                  },
+                ],
+              },
+              options: {
+                responsive: true,
+                plugins: {
+                  legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } },
+                },
+              },
+            }),
+          );
+        }
+
+        const trendLabels = [];
+        const trendValues = [];
+        for (let di = 29; di >= 0; di--) {
           const dayStart = new Date(now - di * dayMs);
           dayStart.setHours(0, 0, 0, 0);
           const dayEnd = dayStart.getTime() + dayMs;
-          labels.push(formatReportDate(dayStart.toISOString()).split(',')[0]);
+          trendLabels.push(
+            di % 5 === 0 ? formatReportDate(dayStart.toISOString()).split(',')[0] : '',
+          );
           let c = 0;
           for (let pi = 0; pi < pos.length; pi++) {
             const t = pos[pi].created_at ? new Date(pos[pi].created_at).getTime() : 0;
             if (t >= dayStart.getTime() && t < dayEnd) c += 1;
           }
-          values.push(c);
+          trendValues.push(c);
         }
-        const canvas = document.getElementById('pine-analytics-chart');
-        if (canvas) {
-          if (analyticsChartInstance) {
-            analyticsChartInstance.destroy();
-            analyticsChartInstance = null;
-          }
-          analyticsChartInstance = new Chart(canvas, {
-            type: 'bar',
-            data: {
-              labels: labels,
-              datasets: [
-                {
-                  label: 'Positive reports',
-                  data: values,
-                  backgroundColor: 'rgba(118, 148, 76, 0.75)',
+        const trendCanvas = document.getElementById('pine-analytics-trend');
+        if (trendCanvas) {
+          analyticsChartInstances.push(
+            new Chart(trendCanvas, {
+              type: 'line',
+              data: {
+                labels: trendLabels,
+                datasets: [
+                  {
+                    label: 'Positive reports',
+                    data: trendValues,
+                    borderColor: olive,
+                    backgroundColor: oliveSoft,
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 0,
+                    pointHitRadius: 8,
+                  },
+                ],
+              },
+              options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                  x: { ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } },
+                  y: { beginAtZero: true, ticks: { precision: 0 } },
                 },
-              ],
-            },
-            options: {
-              responsive: true,
-              plugins: { legend: { display: false } },
-              scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
-            },
-          });
+              },
+            }),
+          );
+        }
+
+        const barFarms = topFarms.slice(0, 8);
+        const farmsBarCanvas = document.getElementById('pine-analytics-farms-bar');
+        if (farmsBarCanvas && barFarms.length > 0) {
+          analyticsChartInstances.push(
+            new Chart(farmsBarCanvas, {
+              type: 'bar',
+              data: {
+                labels: barFarms.map(function (row) {
+                  return row.name.length > 18 ? row.name.slice(0, 16) + '…' : row.name;
+                }),
+                datasets: [
+                  {
+                    label: 'Positive sightings',
+                    data: barFarms.map(function (row) {
+                      return row.count;
+                    }),
+                    backgroundColor: olive,
+                  },
+                ],
+              },
+              options: {
+                indexAxis: 'y',
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                  x: { beginAtZero: true, ticks: { precision: 0 } },
+                  y: { ticks: { font: { size: 11 } } },
+                },
+              },
+            }),
+          );
         }
       }
     }

@@ -2206,6 +2206,53 @@ table.pine-table--captures-drawer .pine-drawer-captures-map-actions .pine-btn--s
   color: var(--text-subtle);
 }
 
+.pine-analytics-charts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.pine-analytics-chart-card {
+  background: var(--surface);
+  border: 1px solid rgba(192, 182, 172, 0.35);
+  border-radius: var(--radius);
+  padding: 0.65rem 0.75rem 0.5rem;
+  box-shadow: var(--shadow);
+}
+
+.pine-analytics-chart-card--wide {
+  grid-column: 1 / -1;
+}
+
+.pine-analytics-chart-label {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-heading);
+}
+
+.pine-analytics-viz-tag {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--olive);
+  background: rgba(118, 148, 76, 0.12);
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+.pine-analytics-viz-note {
+  margin: 0 0 0.75rem;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: var(--text-subtle);
+}
+
 .pine-drawer-subtitle {
   margin: 0 0 0.5rem;
   font-size: 0.9rem;
