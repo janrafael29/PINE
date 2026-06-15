@@ -77,7 +77,7 @@ const List<InsightEntry> insightCatalog = <InsightEntry>[
     sources: <InsightSource>[
       InsightSource(
         title: 'Integrated pest management for pineapple',
-        organization: 'DA extension / IPM guides',
+        organization: 'Extension office / IPM guides',
       ),
     ],
   ),
@@ -107,10 +107,10 @@ const List<InsightEntry> insightCatalog = <InsightEntry>[
     titleEn: 'High severity — urgent',
     titleFil: 'Mataas na severity — agaran',
     bodyEn:
-        'Treat the affected block promptly and notify your technician or DA extension office. '
+        'Treat the affected block promptly and notify your technician or local extension office. '
         'Document with another scan after treatment to track change.',
     bodyFil:
-        'Gamutin agad ang block at ipaalam sa technician o DA extension. '
+        'Gamutin agad ang block at ipaalam sa technician o opisina ng extension. '
         'Mag-scan muli pagkatapos ng treatment para subaybayan.',
     sources: <InsightSource>[
       InsightSource(

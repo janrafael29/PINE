@@ -12,6 +12,7 @@ import 'welcome_screen.dart';
 import 'main_dashboard_screen.dart';
 import '../widgets/unlock_gate.dart';
 import '../widgets/navigation_guide_host.dart';
+import '../widgets/post_auth_gate.dart';
 
 enum _IntroPhase { splash, onboarding, auth }
 
@@ -105,9 +106,11 @@ class _AuthGate extends StatelessWidget {
         final String userId = session!.user.id;
         return UnlockGate(
           isSignedIn: true,
-          child: NavigationGuideHost(
-            key: ValueKey<String>(userId),
-            child: const MainDashboardScreen(),
+          child: PostAuthGate(
+            child: NavigationGuideHost(
+              key: ValueKey<String>(userId),
+              child: const MainDashboardScreen(),
+            ),
           ),
         );
       },

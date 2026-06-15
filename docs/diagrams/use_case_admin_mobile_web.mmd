@@ -1,0 +1,40 @@
+%% PINYA-PIC — Mobile vs Web Admin (compact, June 2026)
+%% Mermaid Live: paste whole block, zoom 100–110%
+
+flowchart TB
+  classDef actor fill:#587048,stroke:#2d3a24,stroke-width:3px,color:#ffffff
+  classDef mob fill:#c8e0b0,stroke:#4a6b35,stroke-width:2px,color:#1a1a1a
+  classDef web fill:#b8d4f0,stroke:#2e5f9e,stroke-width:2px,color:#1a1a1a
+  classDef adm fill:#ffd966,stroke:#b8860b,stroke-width:2px,color:#1a1a1a
+  classDef note fill:#f5f5f5,stroke:#999999,stroke-width:1px,color:#444444,font-size:12px
+
+  DA((DA Staff)):::actor
+  AD((Full Admin)):::actor
+  AD -.->|inherits| DA
+
+  subgraph MOBILE["MOBILE — PINYA-PIC app"]
+    direction TB
+    M1["Reports queue + expert advice"]:::mob
+    M2["Org analytics + map + heatmap"]:::mob
+    M3["All farms + staff home"]:::mob
+    M4["Approve DA access"]:::adm
+  end
+
+  subgraph WEB["WEB — PineSight console"]
+    direction TB
+    W1["Reports drawer + filters"]:::web
+    W2["Analytics + realtime KPIs"]:::web
+    W3["Org map + focus + search"]:::web
+    W4["Users CRUD"]:::adm
+    W5["Fields + boundary + bulk"]:::adm
+    W6["Farm insight + DA approval"]:::adm
+  end
+
+  LEG["Legend: green = mobile · blue = web · gold = full admin only"]:::note
+
+  DA --> M1 & M2 & M3
+  DA --> W1 & W2 & W3
+  AD --> M4
+  AD --> W4 & W5 & W6
+
+  DA ~~~ MOBILE ~~~ WEB ~~~ LEG

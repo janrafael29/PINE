@@ -9,6 +9,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/supabase_client.dart';
+import '../services/registration_completion_service.dart';
+import '../core/registration_setup_prefs.dart';
 import '../core/security_prefs.dart';
 import '../core/theme.dart';
 import '../services/supabase_profile_service.dart';
@@ -437,6 +439,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
       await SupabaseProfileService().upsertCurrentUserProfile();
       await _maybePromptEnableDeviceUnlock();
+      if (!mounted) return;
+      final PendingRegistrationSetup? pending =
+          await consumePendingRegistrationSetup(email);
+      if (pending != null) {
+        await completePendingRegistration(pending);
+      }
       if (!mounted) return;
       await Navigator.pushNamedAndRemoveUntil(
         context,

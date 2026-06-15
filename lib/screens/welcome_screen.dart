@@ -3,6 +3,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import '../core/supabase_client.dart';
 import '../core/theme.dart';
 import 'terms_screen.dart';
 import 'privacy_screen.dart';
@@ -98,7 +99,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Text(
-                    'Identify mealybugs in pineapple plants with high accuracy',
+                    'Identify mealybugs in pineapple plants',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: cs.onPrimary,
@@ -110,6 +111,13 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   onPressed: () {
                     // ignore: discarded_futures
                     _afterTerms(context, () async {
+                      if (!context.mounted) return;
+                      if (SupabaseClientProvider.instance.client.auth
+                              .currentSession !=
+                          null) {
+                        await SupabaseClientProvider.instance.client.auth
+                            .signOut();
+                      }
                       if (!context.mounted) return;
                       await startFieldFirstScan(context, guestMode: true);
                     });

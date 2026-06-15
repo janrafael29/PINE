@@ -1,39 +1,35 @@
 sequenceDiagram
     participant User
-    participant DS as DetectionScreen
-    participant DFC as DetectionFlowController
-    participant CS as CameraService
+    participant PSP as PhotoSourcePicker
+    participant CMS as CameraModeSelector
+    participant IP as ImagePicker
     participant IS as InferenceService
+    participant PRS as PhotoResultScreen
     participant GS as GeoService
-    participant GFS as GeoFenceService
-    participant ISS as ImageStorageService
     participant DBS as DatabaseService
+    participant ISS as ImageStorageService
 
-    User->>DS: Tap Capture
-    DS->>DFC: captureAndDetect
-    DFC->>CS: takePicture
-    CS-->>DFC: imageBytes
-    DFC->>IS: runInference imageBytes
-    IS->>IS: preprocess
-    IS->>IS: model inference
-    IS->>IS: parse output and NMS
-    IS-->>DFC: detection result
-    DFC->>GS: getCurrentPosition
-
-    alt GPS Success
-        GS-->>DFC: lat lng
-        DFC->>DBS: getAllLands
-        DBS-->>DFC: lands
-        DFC->>GFS: findLandForPoint
-        GFS-->>DFC: geofence result
-        DFC->>ISS: saveDetectionImage
-        ISS-->>DFC: imagePath
-        DFC->>DBS: insertDetection
-        DBS-->>DFC: detectionId
-        DFC-->>DS: success outcome
-        DS-->>User: render boxes and location
-    else GPS Failure
-        GS-->>DFC: error
-        DFC-->>DS: failure outcome
-        DS-->>User: show error and retry
+    User->>PSP: Choose camera or gallery
+    alt Camera path
+        PSP->>CMS: Open camera mode
+        User->>CMS: Tap capture
+        CMS->>IP: pickImage from camera
+        IP-->>CMS: image file
+        CMS->>IS: runInference image bytes
+    else Gallery path
+        User->>PSP: Pick image
+        PSP->>IS: runInference image bytes
     end
+    IS->>IS: preprocess 1280px letterbox
+    IS->>IS: TFLite inference + NMS
+    IS-->>PRS: DetectionResult count boxes confidence
+    PRS-->>User: Show boxes preview map tag location
+
+    User->>PRS: Tap Save
+    PRS->>GS: getCurrentPosition optional
+    PRS->>PRS: fieldBoundarySaveGate dialog if needed
+    PRS->>ISS: saveDetectionImage bytes
+    ISS-->>PRS: localPath
+    PRS->>DBS: insertCapturedPhoto
+    PRS->>DBS: enqueueUpload
+    PRS-->>User: Success snackbar saved locally

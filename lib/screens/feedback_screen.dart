@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/theme.dart';
+import '../widgets/app_scaffold.dart';
 import 'feedback_form_screen.dart';
 
 class FeedbackScreen extends StatelessWidget {
@@ -13,25 +14,9 @@ class FeedbackScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Send Feedback'),
-        backgroundColor: AppTheme.primaryGreen,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: <Color>[
-              AppTheme.primaryGreen.withValues(alpha: 0.08),
-              Colors.white,
-            ],
-          ),
-        ),
-        child: ListView(
+    return AppScaffold(
+      title: 'Send Feedback',
+      body: ListView(
           padding: const EdgeInsets.all(20),
           children: <Widget>[
             const SizedBox(height: 20),
@@ -61,7 +46,6 @@ class FeedbackScreen extends StatelessWidget {
             ),
           ],
         ),
-      ),
     );
   }
 

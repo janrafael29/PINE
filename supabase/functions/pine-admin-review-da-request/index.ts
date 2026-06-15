@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
     const adminClient = createClient(supabaseUrl, service);
 
     const { data: row, error: rowErr } = await adminClient
-      .from('da_access_requests')
+      .from('access_request')
       .select('id, user_id, status')
       .eq('id', request_id)
       .maybeSingle();
@@ -150,7 +150,7 @@ Deno.serve(async (req) => {
     }
 
     const { error: updErr } = await adminClient
-      .from('da_access_requests')
+      .from('access_request')
       .update({
         status: nextStatus,
         reviewer_id: user.id,

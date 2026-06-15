@@ -4,6 +4,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../core/admin_session.dart';
 import '../core/app_state.dart';
 import '../core/supabase_client.dart';
 import '../core/theme.dart';
@@ -15,8 +16,11 @@ import 'edit_field_screen.dart';
 import 'manage_field_photos_screen.dart';
 import 'field_history_screen.dart';
 import '../services/database_service.dart';
+import '../services/export_service.dart';
 import '../services/field_stats_service.dart';
+import '../widgets/pine_card.dart';
 import '../widgets/action_popup.dart';
+import '../widgets/app_scaffold.dart';
 import '../widgets/online_required_dialog.dart';
 import 'land_map_screen.dart';
 import '../models/land.dart';
@@ -38,6 +42,36 @@ class FieldDetailScreen extends StatefulWidget {
 }
 
 class _FieldDetailScreenState extends State<FieldDetailScreen> {
+  bool _exportingReviewed = false;
+  final ExportService _export = ExportService();
+
+  Future<void> _exportReviewedForField() async {
+    if (_exportingReviewed) return;
+    if (!await ensureOnline(context)) return;
+    setState(() => _exportingReviewed = true);
+    final ActionPopupController popup = ActionPopupController();
+    popup.showBlockingProgress(context, message: 'Preparing export…');
+    try {
+      final ({String path, int count}) result =
+          await _export.exportReviewedImagesCsvZip(fieldId: widget.fieldId);
+      popup.close();
+      if (!mounted) return;
+      await ActionPopup.showSuccess(
+        context,
+        message: ExportService.downloadSuccessMessage(
+          result.path,
+          count: result.count,
+        ),
+      );
+    } catch (e) {
+      popup.close();
+      if (!mounted) return;
+      await ActionPopup.showError(context, message: 'Export failed: $e');
+    } finally {
+      if (mounted) setState(() => _exportingReviewed = false);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -53,15 +87,30 @@ class _FieldDetailScreenState extends State<FieldDetailScreen> {
     final DatabaseService localDb = DatabaseService();
     final String? uid =
         SupabaseClientProvider.instance.client.auth.currentUser?.id;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.fieldName),
-        backgroundColor: AppTheme.primaryGreen,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: <Widget>[
-          PopupMenuButton<String>(
-            onSelected: (String v) async {
+    return AppScaffold(
+      title: widget.fieldName,
+      actions: <Widget>[
+        if (currentUserJwtStaff())
+          IconButton(
+            tooltip: 'Export reviewed images',
+            onPressed: _exportingReviewed ? null : _exportReviewedForField,
+            icon: _exportingReviewed
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.download_outlined),
+          ),
+        PopupMenuButton<String>(
+          onSelected: (String v) async {
+              if (v == 'export_reviewed') {
+                await _exportReviewedForField();
+                return;
+              }
               if (v == 'history') {
                 Navigator.push<void>(
                   context,
@@ -183,6 +232,15 @@ class _FieldDetailScreenState extends State<FieldDetailScreen> {
               }
             },
             itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+              if (currentUserJwtStaff())
+                const PopupMenuItem<String>(
+                  value: 'export_reviewed',
+                  child: ListTile(
+                    leading: Icon(Icons.download_outlined),
+                    title: Text('Export reviewed images'),
+                  ),
+                ),
+              if (currentUserJwtStaff()) const PopupMenuDivider(),
               const PopupMenuItem<String>(
                 value: 'history',
                 child: ListTile(
@@ -221,8 +279,7 @@ class _FieldDetailScreenState extends State<FieldDetailScreen> {
               ),
             ],
           ),
-        ],
-      ),
+      ],
       body: FutureBuilder<FieldImageStats>(
         future: loadFieldImageStats(fieldId: widget.fieldId, viewerUserId: uid),
         builder: (context, snap) {
@@ -351,35 +408,57 @@ class _FieldDetailScreenState extends State<FieldDetailScreen> {
                   ),
           ),
           const SizedBox(height: 20),
-          Card(
-            elevation: 2,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                children: <Widget>[
-                  Expanded(
-                    child: _buildStatItem(
-                      Icons.image,
-                      'Images Taken',
-                      '$imageCount',
-                    ),
+          PineCard(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: _buildStatItem(
+                    Icons.image,
+                    'Images Taken',
+                    '$imageCount',
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildStatItem(
-                      Icons.calendar_today,
-                      'Last Updated',
-                      lastUpdated,
-                    ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildStatItem(
+                    Icons.calendar_today,
+                    'Last Updated',
+                    lastUpdated,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 20),
+          if (currentUserJwtStaff()) ...<Widget>[
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: FilledButton.icon(
+                onPressed: _exportingReviewed ? null : _exportReviewedForField,
+                icon: _exportingReviewed
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.download_outlined, size: 20),
+                label: const Text('Export reviewed images'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppTheme.primaryGreen,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
           SizedBox(
             width: double.infinity,
             height: 48,
@@ -442,17 +521,17 @@ class _FieldDetailScreenState extends State<FieldDetailScreen> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        Icon(icon, color: AppTheme.primaryGreen, size: 28),
+        Icon(icon, color: Theme.of(context).colorScheme.primary, size: 28),
         const SizedBox(height: 6),
         Text(
           value,
           textAlign: TextAlign.center,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: AppTheme.textDark,
+            color: context.pineTextPrimary,
           ),
         ),
         Text(
@@ -460,9 +539,9 @@ class _FieldDetailScreenState extends State<FieldDetailScreen> {
           textAlign: TextAlign.center,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 11,
-            color: AppTheme.textMedium,
+            color: context.pineTextSecondary,
           ),
         ),
       ],

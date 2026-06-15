@@ -1,0 +1,175 @@
+%% PINYA-PIC — Use Case Diagram (structured layout, June 2026)
+%% Paste into https://mermaid.live — zoom out for full view
+%% Classic UML ovals: docs/diagrams/use_case_diagram.puml
+
+flowchart LR
+  classDef actor fill:#e8f0e3,stroke:#587048,stroke-width:2px,color:#1a1a1a
+  classDef uc fill:#ffffff,stroke:#2e3141,stroke-width:1px
+  classDef web fill:#f4f8ff,stroke:#4a6fa5,stroke-width:1px
+
+  subgraph ACTORS_L["Actors"]
+    direction TB
+    F((Farmer)):::actor
+    DA((DA Staff)):::actor
+    AD((Full Admin)):::actor
+    AD -.->|«inherits»| DA
+  end
+
+  subgraph SYS["PINYA-PIC System Boundary"]
+    direction TB
+
+    subgraph ROW1["Mobile — account, fields, capture"]
+      direction LR
+
+      subgraph AUTH["① Account & access"]
+        direction TB
+        A1[Register Account]:::uc
+        A2[Login / Logout]:::uc
+        A3[Manage Profile]:::uc
+        A4[Request DA Staff Access]:::uc
+        A5[View Access Outcome]:::uc
+      end
+
+      subgraph FIELD["② Field management"]
+        direction TB
+        F1[Create Field]:::uc
+        F2[View Fields / Detail]:::uc
+        F3[Edit Field]:::uc
+        F4[Delete Field]:::uc
+        F5[Edit Field Boundary]:::uc
+        F6[Manage Field Photos]:::uc
+      end
+
+      subgraph CAP["③ Capture & reporting"]
+        direction TB
+        C1[Select Field for Scan]:::uc
+        C2[Save Capture & Queue Sync]:::uc
+        C3[Capture Image]:::uc
+        C4[Detect Mealybugs On-Device]:::uc
+        C5[Submit Report to Cloud]:::uc
+        C6[View Capture History]:::uc
+        C7[View Capture Detail]:::uc
+        C8[Read Expert Advice]:::uc
+      end
+    end
+
+    subgraph ROW2["Mobile — diagnose, map, feedback"]
+      direction LR
+
+      subgraph DIAG["④ Diagnose & education"]
+        direction TB
+        D1[View Diagnose Dashboard]:::uc
+        D2[View Weekly Pest Chart]:::uc
+        D3[Browse Disease Information]:::uc
+      end
+
+      subgraph MAP["⑤ Map & analytics"]
+        direction TB
+        M1[View Detections Map]:::uc
+        M2[View Home Map Preview]:::uc
+        M3[View Outbreak Heatmap]:::uc
+      end
+
+      FB[⑥ Submit Feedback]:::uc
+    end
+
+    subgraph ROW3["Staff & admin"]
+      direction LR
+
+      subgraph STAFF["⑦ Staff review — mobile"]
+        direction TB
+        S1[View Staff Home Panel]:::uc
+        S2[View Org Analytics]:::uc
+        S3[Review Reports by Field]:::uc
+        S4[Write Expert Advice]:::uc
+      end
+
+      subgraph ADMIN["⑧ Administration"]
+        direction TB
+        N1[Review DA Access Requests]:::uc
+        N2[Approve / Reject DA Access]:::uc
+        N3[Manage Users]:::uc
+        N4[Write Farm-Level Insight]:::uc
+      end
+    end
+
+    subgraph ROW4["Web console — PineSight"]
+      direction LR
+
+      subgraph WEBUC["⑨ PineSight drawers"]
+        direction TB
+        W1[Reports — Field Groups]:::web
+        W2[Analytics Drawer]:::web
+        W3[Fields / Users Drawers]:::web
+      end
+    end
+  end
+
+  WEB((PineSight Web Admin)):::actor
+
+  %% Includes
+  C1 -.->|«include»| C3
+  C3 -.->|«include»| C4
+  C2 -.->|«include»| C3
+  C2 -.->|«include»| C5
+  D1 -.->|«include»| D2
+  S3 -.->|«include»| C7
+  S4 -.->|«include»| C7
+
+  %% Extends
+  F4 -.->|«extend»| F2
+  F5 -.->|«extend»| F2
+  F5 -.->|«extend»| F3
+  F6 -.->|«extend»| F2
+  C8 -.->|«extend»| C7
+  S4 -.->|«extend»| S3
+  N2 -.->|«extend»| N1
+
+  %% Farmer
+  F --> A1
+  F --> A2
+  F --> A3
+  F --> A4
+  F --> A5
+  F --> F1
+  F --> F2
+  F --> F3
+  F --> C1
+  F --> C2
+  F --> C6
+  F --> C7
+  F --> D1
+  F --> D3
+  F --> M1
+  F --> M2
+  F --> FB
+
+  %% DA Staff
+  DA --> A2
+  DA --> A3
+  DA --> S1
+  DA --> S2
+  DA --> S3
+  DA --> S4
+  DA --> M1
+  DA --> M3
+
+  %% Full Admin
+  AD --> N1
+  AD --> N2
+  AD --> N3
+  AD --> N4
+
+  %% PineSight Web
+  WEB --> A2
+  WEB --> W1
+  WEB --> W2
+  WEB --> W3
+  WEB --> S4
+  WEB --> M1
+  WEB --> M3
+  WEB --> N1
+  WEB --> N3
+
+  ACTORS_L ~~~ SYS
+  SYS ~~~ WEB

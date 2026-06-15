@@ -21,6 +21,7 @@ import '../core/service_locator.dart';
 import '../core/app_logger.dart';
 import '../core/network_reachability.dart';
 import '../core/theme.dart';
+import '../widgets/app_scaffold.dart';
 import '../models/detection_result.dart';
 import '../services/cloud_sync_service.dart';
 import '../services/image_storage_service.dart';
@@ -154,10 +155,10 @@ Future<latlong2.LatLng?> _promptOptionalWherePhotoTaken(
             children: <Widget>[
               Text(
                 fil ? 'Saan kinunan ang larawan?' : 'Where was this photo taken?',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
-                  color: AppTheme.textDark,
+                  color: context.pineTextPrimary,
                 ),
               ),
               const SizedBox(height: 8),
@@ -244,13 +245,8 @@ class CameraPermissionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Permission'),
-        backgroundColor: AppTheme.primaryGreen,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
+    return AppScaffold(
+      title: 'Permission',
       body: SafeArea(
         child: Center(
           child: Padding(
@@ -264,19 +260,19 @@ class CameraPermissionScreen extends StatelessWidget {
                   color: AppTheme.primaryGreen,
                 ),
                 const SizedBox(height: 24),
-                const Text(
+                Text(
                   'Pine-Sight would like to access your Camera',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.textDark,
+                    color: context.pineTextPrimary,
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Text(
+                Text(
                   'Only when using the app',
-                  style: TextStyle(fontSize: 14, color: AppTheme.textMedium),
+                  style: TextStyle(fontSize: 14, color: context.pineTextSecondary),
                 ),
                 const SizedBox(height: 32),
                 SizedBox(
@@ -297,9 +293,9 @@ class CameraPermissionScreen extends StatelessWidget {
                 const SizedBox(height: 12),
                 TextButton(
                   onPressed: () => Navigator.pop(context, false),
-                  child: const Text(
+                  child: Text(
                     'Deny',
-                    style: TextStyle(fontSize: 16, color: AppTheme.textMedium),
+                    style: TextStyle(fontSize: 16, color: context.pineTextSecondary),
                   ),
                 ),
               ],
@@ -317,13 +313,8 @@ class GpsPermissionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Permission'),
-        backgroundColor: AppTheme.primaryGreen,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
+    return AppScaffold(
+      title: 'Permission',
       body: SafeArea(
         child: Center(
           child: Padding(
@@ -337,19 +328,19 @@ class GpsPermissionScreen extends StatelessWidget {
                   color: AppTheme.primaryGreen,
                 ),
                 const SizedBox(height: 24),
-                const Text(
+                Text(
                   'Allow Pine-Sight to access this device\'s location',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.textDark,
+                    color: context.pineTextPrimary,
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Text(
+                Text(
                   'Only when using the app',
-                  style: TextStyle(fontSize: 14, color: AppTheme.textMedium),
+                  style: TextStyle(fontSize: 14, color: context.pineTextSecondary),
                 ),
                 const SizedBox(height: 32),
                 SizedBox(
@@ -370,9 +361,9 @@ class GpsPermissionScreen extends StatelessWidget {
                 const SizedBox(height: 12),
                 TextButton(
                   onPressed: () => Navigator.pop(context, false),
-                  child: const Text(
+                  child: Text(
                     'Deny',
-                    style: TextStyle(fontSize: 16, color: AppTheme.textMedium),
+                    style: TextStyle(fontSize: 16, color: context.pineTextSecondary),
                   ),
                 ),
               ],
@@ -390,13 +381,8 @@ class GalleryPermissionScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Permission'),
-        backgroundColor: AppTheme.primaryGreen,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
+    return AppScaffold(
+      title: 'Permission',
       body: SafeArea(
         child: Center(
           child: Padding(
@@ -410,19 +396,19 @@ class GalleryPermissionScreen extends StatelessWidget {
                   color: AppTheme.primaryGreen,
                 ),
                 const SizedBox(height: 24),
-                const Text(
+                Text(
                   'Pine-Sight would like to access your Gallery',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.textDark,
+                    color: context.pineTextPrimary,
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Text(
+                Text(
                   'Only when using the app',
-                  style: TextStyle(fontSize: 14, color: AppTheme.textMedium),
+                  style: TextStyle(fontSize: 14, color: context.pineTextSecondary),
                 ),
                 const SizedBox(height: 32),
                 SizedBox(
@@ -443,9 +429,9 @@ class GalleryPermissionScreen extends StatelessWidget {
                 const SizedBox(height: 12),
                 TextButton(
                   onPressed: () => Navigator.pop(context, false),
-                  child: const Text(
+                  child: Text(
                     'Deny',
-                    style: TextStyle(fontSize: 16, color: AppTheme.textMedium),
+                    style: TextStyle(fontSize: 16, color: context.pineTextSecondary),
                   ),
                 ),
               ],
@@ -981,34 +967,27 @@ class _PhotoSourcePickerState extends State<PhotoSourcePicker> {
         ? (fil ? 'Walang field' : 'No field')
         : widget.fieldName.trim();
 
-    return Scaffold(
-      backgroundColor: colorScheme.surfaceContainerLowest,
-      appBar: AppBar(
-        title: Text(
-          widget.guestMode
-              ? (fil ? 'Guest scan' : 'Guest scan')
-              : (fil ? 'Kumuha ng larawan' : 'Add Photo'),
-        ),
-        backgroundColor: AppTheme.primaryGreen,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        leading: widget.guestMode ? welcomeBackButton(context) : null,
-        actions: <Widget>[
-          if (!widget.guestMode)
-            IconButton(
-              tooltip: fil ? 'Mga nai-save na larawan' : 'Captured pictures',
-              icon: const Icon(Icons.photo_library_outlined),
-              onPressed: () {
-                Navigator.push<void>(
-                  context,
-                  MaterialPageRoute<void>(
-                    builder: (_) => const CapturedPhotosScreen(),
-                  ),
-                );
-              },
-            ),
-        ],
-      ),
+    return AppScaffold(
+      title: widget.guestMode
+          ? (fil ? 'Guest scan' : 'Guest scan')
+          : (fil ? 'Kumuha ng larawan' : 'Add Photo'),
+      leading: widget.guestMode ? welcomeBackButton(context) : null,
+      usePatternBackground: false,
+      actions: <Widget>[
+        if (!widget.guestMode)
+          IconButton(
+            tooltip: fil ? 'Mga nai-save na larawan' : 'Captured pictures',
+            icon: const Icon(Icons.photo_library_outlined),
+            onPressed: () {
+              Navigator.push<void>(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => const CapturedPhotosScreen(),
+                ),
+              );
+            },
+          ),
+      ],
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1042,7 +1021,7 @@ class _PhotoSourcePickerState extends State<PhotoSourcePicker> {
                           : 'How do you want to capture?',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w800,
-                            color: AppTheme.textDark,
+                            color: context.pineTextPrimary,
                           ),
                     ),
                     const SizedBox(height: 6),
@@ -1105,7 +1084,7 @@ class _PhotoSourcePickerState extends State<PhotoSourcePicker> {
                     if (!widget.guestMode) ...<Widget>[
                       const SizedBox(height: 24),
                       OutlinedButton.icon(
-                        key: DashboardGuideKeys.addPhotoSyncKey,
+                        key: DashboardGuideKeyHolder.addPhotoSyncKey,
                         onPressed: _busy ? null : _manualSyncPressed,
                         icon: const Icon(Icons.cloud_sync_outlined),
                         label: Text(
@@ -1211,9 +1190,9 @@ class _ScanContextBanner extends StatelessWidget {
                 filipino
                     ? 'Guest scan — hindi nase-save'
                     : 'Guest scan — not saved',
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w700,
-                  color: AppTheme.textDark,
+                  color: context.pineTextPrimary,
                 ),
               ),
             ),
@@ -1263,10 +1242,10 @@ class _ScanContextBanner extends StatelessWidget {
                   fieldLabel,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
-                    color: AppTheme.textDark,
+                    color: context.pineTextPrimary,
                   ),
                 ),
               ],
@@ -1321,10 +1300,10 @@ class _CaptureChoiceCard extends StatelessWidget {
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 15,
-                  color: AppTheme.textDark,
+                  color: context.pineTextPrimary,
                 ),
               ),
               const SizedBox(height: 4),
@@ -1906,6 +1885,7 @@ class _PhotoResultScreenState extends State<PhotoResultScreen>
       case FieldBoundarySaveGate.inside:
         return true;
       case FieldBoundarySaveGate.locationRequired:
+        if (!context.mounted) return false;
         await showDialog<void>(
           context: context,
           builder: (ctx) => AlertDialog(
@@ -1925,6 +1905,7 @@ class _PhotoResultScreenState extends State<PhotoResultScreen>
         );
         return false;
       case FieldBoundarySaveGate.outside:
+        if (!context.mounted) return false;
         await showDialog<void>(
           context: context,
           builder: (ctx) => AlertDialog(
@@ -1952,13 +1933,8 @@ class _PhotoResultScreenState extends State<PhotoResultScreen>
   Widget build(BuildContext context) {
     final bool fil = context.watch<AppState>().isFilipino;
     final bool hasMealybugHits = visibleCount(_liveDetections) > 0;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_resultsAppBarTitle(fil)),
-        backgroundColor: AppTheme.primaryGreen,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
+    return AppScaffold(
+      title: _resultsAppBarTitle(fil),
       bottomNavigationBar: widget.guestMode
           ? _guestResultBottomBar(context, fil)
           : _saveRetakeBottomBar(context, fil),
@@ -2190,10 +2166,10 @@ class _PhotoResultScreenState extends State<PhotoResultScreen>
                   children: <Widget>[
                     Text(
                       fil ? 'Ano ang susunod?' : 'What to do next',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
-                        color: AppTheme.textDark,
+                        color: context.pineTextPrimary,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -2233,10 +2209,10 @@ class _PhotoResultScreenState extends State<PhotoResultScreen>
                               Expanded(
                                 child: Text(
                                   fil ? 'Mga Deteksyon' : 'Detections',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w800,
-                                    color: AppTheme.textDark,
+                                    color: context.pineTextPrimary,
                                   ),
                                 ),
                               ),
@@ -2302,17 +2278,17 @@ class _PhotoResultScreenState extends State<PhotoResultScreen>
                               Expanded(
                                 child: Text(
                                   label,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.w600,
-                                    color: AppTheme.textDark,
+                                    color: context.pineTextPrimary,
                                   ),
                                 ),
                               ),
                               Text(
                                 '$pct%',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.w800,
-                                  color: AppTheme.textDark,
+                                  color: context.pineTextPrimary,
                                 ),
                               ),
                             ],
@@ -2411,9 +2387,9 @@ class _PhotoResultScreenState extends State<PhotoResultScreen>
                         fil
                             ? 'Nasa loob ng piniling field: ${widget.fieldName}'
                             : 'Inside chosen field: ${widget.fieldName}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w700,
-                          color: AppTheme.textDark,
+                          color: context.pineTextPrimary,
                         ),
                       ),
                     ),
@@ -2447,9 +2423,9 @@ class _PhotoResultScreenState extends State<PhotoResultScreen>
                         fil
                             ? 'Nasa labas ng piniling field. Hindi maise-save hanggang nasa loob ka ng hangganan.'
                             : 'Outside chosen field. Save is blocked until you are inside the boundary.',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w700,
-                          color: AppTheme.textDark,
+                          color: context.pineTextPrimary,
                         ),
                       ),
                     ),
@@ -2483,9 +2459,9 @@ class _PhotoResultScreenState extends State<PhotoResultScreen>
                         fil
                             ? 'Nasa loob ng field: ${_fence!.land!.landName}'
                             : 'Inside field boundary: ${_fence!.land!.landName}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w700,
-                          color: AppTheme.textDark,
+                          color: context.pineTextPrimary,
                         ),
                       ),
                     ),
@@ -2641,8 +2617,8 @@ class _PhotoResultScreenState extends State<PhotoResultScreen>
     // Make sure we try to tag a location before saving (works offline via last-known).
     await _ensureTaggedLocation(showUi: true);
 
-    if (!mounted) {
-      setState(() => _saving = false);
+    if (!context.mounted) {
+      if (mounted) setState(() => _saving = false);
       return;
     }
     final bool fil = context.read<AppState>().isFilipino;
@@ -2716,10 +2692,6 @@ class _PhotoResultScreenState extends State<PhotoResultScreen>
         originalFilePath: widget.imagePath,
       ),
     );
-
-    if (context.mounted) {
-      context.read<AppState>().bumpCapturedPhotos();
-    }
 
     if (!context.mounted) return;
     final bool online = await NetworkReachability.isOnline();
@@ -2812,6 +2784,13 @@ class _PhotoResultScreenState extends State<PhotoResultScreen>
     }
 
     if (!context.mounted) return;
+
+    final AppState appState = context.read<AppState>();
+    final String? savedFieldId = _effectiveFieldId;
+    final String savedFieldName = _effectiveFieldName;
+    final double? savedPinLat = _taggedLat;
+    final double? savedPinLng = _taggedLng;
+
     await ActionPopup.showSuccessAutoDismiss(
       context,
       title: fil ? 'Na-save' : 'Saved',
@@ -2825,21 +2804,21 @@ class _PhotoResultScreenState extends State<PhotoResultScreen>
     );
     if (!context.mounted) return;
 
-    final String? savedFieldId = _effectiveFieldId;
-    final AppState appState = context.read<AppState>();
-    if (savedFieldId != null && savedFieldId.isNotEmpty) {
-      appState.requestNavigateToFieldAfterScan(
-        fieldId: savedFieldId,
-        fieldName: _effectiveFieldName,
-        pinLat: _taggedLat,
-        pinLng: _taggedLng,
-      );
-    } else {
-      appState.requestDashboardHomeTab();
-    }
-
     Navigator.popUntil(context, (Route<dynamic> route) => route.isFirst);
-    if (mounted) setState(() => _saving = false);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      appState.bumpCapturedPhotos();
+      if (savedFieldId != null && savedFieldId.isNotEmpty) {
+        appState.requestNavigateToFieldAfterScan(
+          fieldId: savedFieldId,
+          fieldName: savedFieldName,
+          pinLat: savedPinLat,
+          pinLng: savedPinLng,
+        );
+      } else {
+        appState.requestDashboardHomeTab();
+      }
+    });
   }
 }
 
@@ -2952,9 +2931,9 @@ class _LocationPreviewCard extends StatelessWidget {
                                 : (fil
                                     ? 'Awtomatikong pagta-tag ng lokasyon…'
                                     : 'Auto-tagging location…'),
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.w800,
-                              color: AppTheme.textDark,
+                              color: context.pineTextPrimary,
                             ),
                           ),
                           const SizedBox(height: 6),
@@ -2965,14 +2944,14 @@ class _LocationPreviewCard extends StatelessWidget {
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
                               color: has
-                                  ? AppTheme.textDark
-                                  : AppTheme.textMedium,
+                                  ? context.pineTextPrimary
+                                  : context.pineTextSecondary,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const Icon(Icons.chevron_right, color: AppTheme.textMedium),
+                    Icon(Icons.chevron_right, color: context.pineTextSecondary),
                   ],
                 ),
               ),
@@ -3276,13 +3255,9 @@ class _DetectionImageViewerScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Detection Preview'),
-        backgroundColor: AppTheme.primaryGreen,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
+    return AppScaffold(
+      title: 'Detection Preview',
+      usePatternBackground: false,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
@@ -3424,13 +3399,9 @@ class _CameraModeSelectorState extends State<CameraModeSelector> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.fieldName),
-        backgroundColor: AppTheme.primaryGreen,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
+    return AppScaffold(
+      title: widget.fieldName,
+      usePatternBackground: false,
       body: Stack(
         children: <Widget>[
           Column(
@@ -3662,13 +3633,8 @@ class _AlbumsScreenState extends State<AlbumsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Albums'),
-        backgroundColor: AppTheme.primaryGreen,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
+    return AppScaffold(
+      title: 'Albums',
       body: _isProcessing
           ? const Center(child: CircularProgressIndicator())
           : _loadingAlbums

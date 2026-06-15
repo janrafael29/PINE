@@ -67,7 +67,7 @@ $env:SUPABASE_SERVICE_ROLE_KEY = 'YOUR_SERVICE_ROLE_KEY_HERE'
 
 ## Auth notes
 
-- Admin sign-in uses **email + password** (`signInWithPassword`) — no OAuth redirect setup required for the live URL.
+- Admin sign-in uses **email + password** (`signInWithPassword`) — no OAuth redirect setup required for the live URL. Multiple browsers may use the same staff account at once.
 - The **anon key** in `config.js` is meant to be public (protected by RLS).
 - Never put the **service_role** key in `config.js` or the mobile app — deploy script only.
 
@@ -80,9 +80,9 @@ $env:SUPABASE_SERVICE_ROLE_KEY = 'YOUR_SERVICE_ROLE_KEY_HERE'
 | `Missing admin/config.js` | Copy `config.example.js` → `config.js` and fill values |
 | Raw HTML / source code in browser | You are on a Supabase URL — deploy to **Netlify** instead |
 | `Authentication required` on Netlify deploy | Run `npx netlify-cli login` first |
+| `JSONHTTPError: Forbidden` on `-Prod` | Often **Netlify credit limit** on free tier (`Account credit usage exceeded`). The deploy script auto-falls back to draft + publish; or run draft then `netlify api restoreSiteDeploy`. Add credits in [Netlify billing](https://app.netlify.com/teams/janrafaelmorga29/billing) if needed. |
 | Netlify site asks for password | Anonymous deploy — claim the site or redeploy after `netlify login` with `-Prod` |
 | Blank page on live URL | DevTools → confirm `config.js` loaded; hard refresh `Ctrl+F5` |
-| Sign-in works locally but not live | Same `config.js` values; sign out/in; confirm staff JWT (`admin` or `da`) |
 
 ---
 

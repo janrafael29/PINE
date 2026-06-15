@@ -4,18 +4,22 @@ library;
 import 'package:flutter/material.dart';
 
 import '../core/admin_session.dart';
+import '../core/staff_role_labels.dart';
 import '../services/da_access_request_service.dart';
 import '../widgets/online_required_dialog.dart';
+import '../widgets/pine_card.dart';
 
 class DaAccessRequestAdminCard extends StatefulWidget {
-  const DaAccessRequestAdminCard({super.key});
+  const DaAccessRequestAdminCard({super.key, this.fullScreen = false});
+
+  final bool fullScreen;
 
   @override
   State<DaAccessRequestAdminCard> createState() =>
-      _DaAccessRequestAdminCardState();
+      DaAccessRequestAdminCardState();
 }
 
-class _DaAccessRequestAdminCardState extends State<DaAccessRequestAdminCard> {
+class DaAccessRequestAdminCardState extends State<DaAccessRequestAdminCard> {
   final DaAccessRequestService _service = DaAccessRequestService();
 
   List<DaAccessRequestRow> _pending = <DaAccessRequestRow>[];
@@ -29,6 +33,8 @@ class _DaAccessRequestAdminCardState extends State<DaAccessRequestAdminCard> {
     // ignore: discarded_futures
     _reload();
   }
+
+  Future<void> reload() => _reload();
 
   Future<void> _reload() async {
     if (!currentUserJwtFullAdmin()) {
@@ -72,7 +78,8 @@ class _DaAccessRequestAdminCardState extends State<DaAccessRequestAdminCard> {
           return AlertDialog(
             title: const Text('Reject request?'),
             content: const Text(
-              'This farmer will not receive DA access. They can submit a new request later.',
+              'This user will not receive agriculturist access. They can '
+              'register again as staff or submit a new request after sign-up.',
             ),
             actions: <Widget>[
               TextButton(
@@ -88,6 +95,40 @@ class _DaAccessRequestAdminCardState extends State<DaAccessRequestAdminCard> {
         },
       );
       if (confirmed != true || !mounted) return;
+    } else if (action == 'approve') {
+      DaAccessRequestRow? row;
+      for (final DaAccessRequestRow candidate in _pending) {
+        if (candidate.id == requestId) {
+          row = candidate;
+          break;
+        }
+      }
+      if (row != null) {
+        final DaAccessRequestRow approvedRow = row;
+        final bool? confirmed = await showDialog<bool>(
+          context: context,
+          builder: (BuildContext dialogContext) {
+            return AlertDialog(
+              title: Text('Approve $staffRoleSingular access?'),
+              content: Text(
+                '${_requesterLabel(approvedRow)} wants access as ${_organizationLabel(approvedRow)} staff.\n\n'
+                'They must sign out and sign in again after approval.',
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  child: const Text('Approve'),
+                ),
+              ],
+            );
+          },
+        );
+        if (confirmed != true || !mounted) return;
+      }
     }
 
     setState(() => _busyRequestId = requestId);
@@ -99,7 +140,7 @@ class _DaAccessRequestAdminCardState extends State<DaAccessRequestAdminCard> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('DA request rejected.'),
+            content: Text('$staffRoleSingular access request rejected.'),
             backgroundColor: Theme.of(context).colorScheme.primary,
           ),
         );
@@ -132,9 +173,10 @@ class _DaAccessRequestAdminCardState extends State<DaAccessRequestAdminCard> {
       barrierDismissible: true,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          title: const Text('DA access approved'),
-          content: const Text(
-            'The user now has DA access. Ask them to sign out and sign in again.',
+          title: Text('$staffRoleSingular access approved'),
+          content: Text(
+            'The user now has agriculturist access. Ask them to sign out '
+            'and sign in again.',
           ),
           actions: <Widget>[
             FilledButton(
@@ -148,6 +190,8 @@ class _DaAccessRequestAdminCardState extends State<DaAccessRequestAdminCard> {
   }
 
   String _requesterLabel(DaAccessRequestRow row) {
+    final String? full = row.fullName?.trim();
+    if (full != null && full.isNotEmpty) return full;
     final String? name = row.displayName?.trim();
     if (name != null && name.isNotEmpty) return name;
     final String? email = row.email?.trim();
@@ -157,6 +201,11 @@ class _DaAccessRequestAdminCardState extends State<DaAccessRequestAdminCard> {
     return 'Unknown user';
   }
 
+  String _organizationLabel(DaAccessRequestRow row) {
+    final String? org = row.organization?.trim();
+    return (org != null && org.isNotEmpty) ? org : 'unspecified organization';
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!currentUserJwtFullAdmin()) {
@@ -164,6 +213,132 @@ class _DaAccessRequestAdminCardState extends State<DaAccessRequestAdminCard> {
     }
 
     final ColorScheme cs = Theme.of(context).colorScheme;
+
+    if (widget.fullScreen) {
+      return RefreshIndicator(
+        onRefresh: _reload,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: <Widget>[
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+                child: Row(
+                  children: <Widget>[
+                    _PendingCountChip(count: _pending.length, loading: _loading),
+                    const Spacer(),
+                    Text(
+                      '${_pending.length} pending',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (_loading)
+              const SliverFillRemaining(
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              )
+            else if (_error != null)
+              SliverFillRemaining(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: <Widget>[
+                      Icon(Icons.error_outline, size: 40, color: cs.error),
+                      const SizedBox(height: 12),
+                      Text(
+                        _error!,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: cs.error, fontSize: 13),
+                      ),
+                      const SizedBox(height: 16),
+                      FilledButton.icon(
+                        onPressed: _reload,
+                        icon: const Icon(Icons.refresh, size: 18),
+                        label: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else if (_pending.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: <Widget>[
+                      Icon(
+                        Icons.inbox_outlined,
+                        size: 52,
+                        color: cs.onSurfaceVariant.withValues(alpha: 0.55),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        'No pending requests',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: cs.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        staffAccessEmptyAdminHint,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13,
+                          height: 1.35,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        staffAccessEmptyAdminFollowUp,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: cs.onSurfaceVariant.withValues(alpha: 0.85),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (BuildContext context, int i) {
+                      final DaAccessRequestRow row = _pending[i];
+                      return Padding(
+                        padding: EdgeInsets.only(top: i == 0 ? 0 : 10),
+                        child: _PendingRequestTile(
+                          row: row,
+                          label: _requesterLabel(row),
+                          organization: _organizationLabel(row),
+                          busy: _busyRequestId == row.id,
+                          onApprove: () => _review(row.id, 'approve'),
+                          onReject: () => _review(row.id, 'reject'),
+                        ),
+                      );
+                    },
+                    childCount: _pending.length,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    }
 
     Widget body;
     if (_loading) {
@@ -186,7 +361,7 @@ class _DaAccessRequestAdminCardState extends State<DaAccessRequestAdminCard> {
       );
     } else if (_pending.isEmpty) {
       body = Text(
-        'No pending requests. Farmers submit from More → DA / OMAG access.',
+        staffAccessEmptyEmbedded,
         style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
       );
     } else {
@@ -197,6 +372,7 @@ class _DaAccessRequestAdminCardState extends State<DaAccessRequestAdminCard> {
             _PendingRequestTile(
               row: _pending[i],
               label: _requesterLabel(_pending[i]),
+              organization: _organizationLabel(_pending[i]),
               busy: _busyRequestId == _pending[i].id,
               onApprove: () => _review(_pending[i].id, 'approve'),
               onReject: () => _review(_pending[i].id, 'reject'),
@@ -208,46 +384,42 @@ class _DaAccessRequestAdminCardState extends State<DaAccessRequestAdminCard> {
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-      child: Material(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(14),
-        clipBehavior: Clip.antiAlias,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Row(
-                children: <Widget>[
-                  CircleAvatar(
-                    backgroundColor: cs.primary.withValues(alpha: 0.12),
-                    child: Icon(Icons.admin_panel_settings_outlined,
-                        color: cs.primary),
+      child: PineCard(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                CircleAvatar(
+                  backgroundColor: cs.primary.withValues(alpha: 0.12),
+                  child: Icon(Icons.admin_panel_settings_outlined,
+                      color: cs.primary),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    staffAccessRequestsTitle,
+                    style: TextStyle(fontWeight: FontWeight.w800),
                   ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'DA access requests',
-                      style: TextStyle(fontWeight: FontWeight.w800),
-                    ),
+                ),
+                if (!_loading)
+                  IconButton(
+                    tooltip: 'Refresh',
+                    onPressed: _busyRequestId == null ? _reload : null,
+                    icon: const Icon(Icons.refresh, size: 20),
                   ),
-                  if (!_loading)
-                    IconButton(
-                      tooltip: 'Refresh',
-                      onPressed: _busyRequestId == null ? _reload : null,
-                      icon: const Icon(Icons.refresh, size: 20),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Approve to grant DA access. User must sign out and sign in again.',
-                style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
-              ),
-              const SizedBox(height: 12),
-              body,
-            ],
-          ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Approve to grant agriculturist access. User must sign out '
+              'and sign in again.',
+              style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            body,
+          ],
         ),
       ),
     );
@@ -258,6 +430,7 @@ class _PendingRequestTile extends StatelessWidget {
   const _PendingRequestTile({
     required this.row,
     required this.label,
+    required this.organization,
     required this.busy,
     required this.onApprove,
     required this.onReject,
@@ -265,9 +438,36 @@ class _PendingRequestTile extends StatelessWidget {
 
   final DaAccessRequestRow row;
   final String label;
+  final String organization;
   final bool busy;
   final VoidCallback onApprove;
   final VoidCallback onReject;
+
+  Widget _detail(String title, String? value, ColorScheme cs) {
+    if (value == null || value.trim().isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          SizedBox(
+            width: 104,
+            child: Text(
+              title,
+              style: TextStyle(
+                color: cs.onSurfaceVariant,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(value.trim(), style: const TextStyle(fontSize: 13)),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -275,23 +475,69 @@ class _PendingRequestTile extends StatelessWidget {
     final String? email = row.email?.trim();
     final String? note = row.note?.trim();
 
-    return Container(
+    return PineCard(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: cs.outlineVariant),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      organization,
+                      style: TextStyle(
+                        color: cs.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Text(
+                  'Pending',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFFB8560F),
+                  ),
+                ),
+              ),
+            ],
+          ),
           if (email != null && email.isNotEmpty) ...<Widget>[
-            const SizedBox(height: 4),
-            Text(email, style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13)),
+            const SizedBox(height: 6),
+            Text(email, style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
           ],
+          _detail('Office', row.companyLocation, cs),
+          _detail('Position', row.position, cs),
           if (note != null && note.isNotEmpty) ...<Widget>[
             const SizedBox(height: 6),
-            Text(note, style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13)),
+            Text(
+              note,
+              style: TextStyle(
+                color: cs.onSurfaceVariant,
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
           ],
           const SizedBox(height: 10),
           Row(
@@ -299,6 +545,10 @@ class _PendingRequestTile extends StatelessWidget {
               Expanded(
                 child: FilledButton(
                   onPressed: busy ? null : onApprove,
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(0, 40),
+                    visualDensity: VisualDensity.compact,
+                  ),
                   child: busy
                       ? SizedBox(
                           width: 18,
@@ -308,19 +558,50 @@ class _PendingRequestTile extends StatelessWidget {
                             color: cs.onPrimary,
                           ),
                         )
-                      : const Text('Approve DA'),
+                      : const Text('Approve'),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: OutlinedButton(
                   onPressed: busy ? null : onReject,
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 40),
+                    visualDensity: VisualDensity.compact,
+                  ),
                   child: const Text('Reject'),
                 ),
               ),
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PendingCountChip extends StatelessWidget {
+  const _PendingCountChip({required this.count, required this.loading});
+
+  final int count;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: cs.primaryContainer.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        loading ? 'Loading…' : 'Review queue',
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: cs.onPrimaryContainer,
+        ),
       ),
     );
   }

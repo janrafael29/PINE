@@ -2,6 +2,8 @@
 
 Official **B-series** labels for Chapter III figures, **inclusion policy**, and paste-ready **Mermaid** blocks aligned with `d:\old_PINE`.
 
+**Shareable single file (all diagrams):** [`PINYA_PIC_ALL_DIAGRAMS.md`](PINYA_PIC_ALL_DIAGRAMS.md) — combine/export this for panel or adviser review.
+
 ---
 
 ## Chapter 3 — required disclaimer (paste verbatim)
@@ -28,7 +30,8 @@ Use this sentence in **Chapter III** (figure overview or methodology intro):
 | **B10** | Feedback Submission Workflow | § B10 |
 | **B11** | Profile Management and Preferences Flow | § B11 |
 | **B12** | Deployment Topology (Mobile–Local–Cloud) | § B12 |
-| **B14** | *Reserved* — assign to a non-Mermaid figure if needed (e.g. Gantt, ERD screenshot, deployment photo). No Mermaid block in this file. | — |
+| **B13** | Staff Review and Expert Advice Loop | [`PINYA_PIC_ALL_DIAGRAMS.md`](PINYA_PIC_ALL_DIAGRAMS.md) § B13 |
+| **B0** | Use Case Diagram (three roles + web) | [`PINYA_PIC_ALL_DIAGRAMS.md`](PINYA_PIC_ALL_DIAGRAMS.md) § B0 |
 
 **Do not use in thesis:** the simplified B5 variant in § “B5 variant (not for thesis)” — it duplicates **B5** and weakens the panel story.
 
@@ -54,18 +57,14 @@ Use this sentence in **Chapter III** (figure overview or methodology intro):
 
 ```mermaid
 flowchart TD
-  A[Load detections] --> B{Online?}
-  B -->|Yes| C[Supabase realtime / query]
-  B -->|No| D[Local SQLite captures fallback]
-  C --> E[Merge or fallback dataset]
-  D --> E
-  E --> F[Compute DashboardStats]
-  F --> G[Headline UI: image count, field count, infestation rate]
-  F --> H[7-day daily counts series]
-  H --> I[Find peak day index on series]
-  I --> J[Render smoothed line chart]
-  G --> K[Display Diagnose tab]
-  J --> K
+  A[Diagnose tab] --> B{Staff JWT?}
+  B -->|Yes| C[StaffAnalyticsPanel org-wide stream]
+  B -->|No Farmer| D[Watch capturedPhotosRevision]
+  D --> E[Load local SQLite captured_photo]
+  D --> F[Optional Supabase detections stream]
+  E --> G[farmerWeeklyStats local first]
+  F --> G
+  G --> H[DashboardStats + monotonic pest chart]
 ```
 
 ---
@@ -76,11 +75,11 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A[Detection records with timestamps] --> B[Group counts by calendar day]
-  B --> C[Restrict to rolling last 7 days]
-  C --> D[Find peak day index]
-  D --> E[Render Catmull-Rom smoothed curve]
-  E --> F[Display chart]
+  A[Detection records with timestamps] --> B[Group counts by calendar day last 7]
+  B --> C[Compute maxY Y-axis 0 at bottom]
+  C --> D[buildMonotonicSmoothLinePath]
+  D --> E[Peak marker + EN/FIL day labels]
+  E --> F[Render in PineCard]
 ```
 
 ---
@@ -122,8 +121,8 @@ flowchart TD
   INF --> F[Filter scores ≥ 0.20]
   F --> NMS[NMS in Dart]
   NMS --> GEN[Build detection list + overlay data]
-  GEN --> DISP[Display results to user]
-  DISP --> SAVE[Persist to SQLite captured_photo / related rows]
+  GEN --> DISP[Display results Positive or Negative badge]
+  DISP --> SAVE[Persist SQLite captured_photo + has_mealybugs from count]
   SAVE --> LI{Logged in?}
   LI -->|Yes| Q[Enqueue / update upload queue for cloud sync]
   LI -->|No| SK[Skip cloud queue]

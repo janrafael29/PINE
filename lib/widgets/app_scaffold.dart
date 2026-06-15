@@ -21,6 +21,7 @@ class AppScaffold extends StatelessWidget {
     this.usePatternBackground = true,
     this.bodyPadding,
     this.extendBodyBehindAppBar = false,
+    this.appBarBottom,
   }) : assert(
           title != null || titleWidget != null,
           'Provide title or titleWidget',
@@ -56,12 +57,16 @@ class AppScaffold extends StatelessWidget {
 
   final bool extendBodyBehindAppBar;
 
+  /// Optional [AppBar.bottom] — e.g. [TabBar].
+  final PreferredSizeWidget? appBarBottom;
+
   @override
   Widget build(BuildContext context) {
     final PreferredSizeWidget appBar = AppBar(
       leading: leading,
       title: titleWidget ?? Text(title!),
       actions: actions,
+      bottom: appBarBottom,
     );
 
     Widget content = body ?? const SizedBox.shrink();

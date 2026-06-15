@@ -1,0 +1,94 @@
+@startuml PINYA-PIC_Thesis_Use_Case_Diagram
+' Classic thesis layout: Farmer (left) | DA Staff (right) | Full Admin (bottom)
+' Render: https://www.plantuml.com/plantuml  or VS Code PlantUML extension
+
+left to right direction
+skinparam shadowing false
+skinparam actorStyle awesome
+skinparam actor {
+  BorderColor #2e3141
+  BackgroundColor #e8f0e3
+}
+skinparam usecase {
+  BackgroundColor #ffffff
+  BorderColor #2e3141
+  BorderThickness 1.5
+}
+skinparam rectangle {
+  BorderColor #2e3141
+  BorderThickness 2
+  FontStyle bold
+}
+
+title PINYA-PIC: Mealybug Collecting Mobile Application with Decision Middleware
+
+actor Farmer as F
+actor "DA Staff" as DA
+actor "Full Admin" as AD
+
+rectangle "PINYA-PIC System Boundary" {
+
+  usecase "Register Account" as UC_REG
+  usecase "Manage Profile" as UC_PROF
+  usecase "Log In" as UC_LOGIN
+  usecase "Create New Field" as UC_CF
+  usecase "Select Field" as UC_SEL
+  usecase "View Field" as UC_VF
+  usecase "Capture Image" as UC_CAP
+  usecase "View Map" as UC_MAP
+  usecase "Edit Field" as UC_EF
+
+  usecase "Detect Mealybugs\n(On-Device)" as UC_DET
+  usecase "Save Capture &\nSubmit to Cloud" as UC_SAVE
+  usecase "Delete Field" as UC_DF
+  usecase "Edit Field Boundary" as UC_BF
+  usecase "View Detections Map" as UC_VMAP
+  usecase "View Mealybug Infestation\nCount and Percentage" as UC_INF
+  usecase "Manage Field Photos\n(Delete Image)" as UC_MFP
+
+  usecase "View Outbreak\nVisualization" as UC_HEAT
+  usecase "Review Farmer Reports\nand Feedback" as UC_REP
+  usecase "View Capture Detail" as UC_DETL
+  usecase "Write Expert Advice" as UC_ADV
+
+  usecase "Review DA Access\nRequests" as UC_DAQ
+  usecase "Approve Sign-Up\nRequest" as UC_DAP
+}
+
+F --> UC_REG
+F --> UC_PROF
+F --> UC_LOGIN
+F --> UC_CF
+F --> UC_SEL
+F --> UC_VF
+F --> UC_CAP
+F --> UC_MAP
+F --> UC_EF
+
+DA --> UC_LOGIN
+DA --> UC_PROF
+DA --> UC_MAP
+DA --> UC_HEAT
+DA --> UC_REP
+
+AD --> UC_DAP
+
+UC_CAP ..> UC_DET : <<include>>
+UC_CAP ..> UC_SAVE : <<include>>
+UC_SEL ..> UC_CAP : <<include>>
+UC_REP ..> UC_DETL : <<include>>
+UC_ADV ..> UC_DETL : <<include>>
+
+UC_DF ..> UC_VF : <<extend>>
+UC_BF ..> UC_VF : <<extend>>
+UC_BF ..> UC_EF : <<extend>>
+UC_VMAP ..> UC_VF : <<extend>>
+UC_INF ..> UC_VF : <<extend>>
+UC_MFP ..> UC_VF : <<extend>>
+UC_ADV ..> UC_REP : <<extend>>
+UC_DAP ..> UC_DAQ : <<extend>>
+
+F -[hidden]down- AD
+DA -[hidden]down- AD
+
+@enduml

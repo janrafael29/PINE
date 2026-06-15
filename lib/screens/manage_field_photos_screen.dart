@@ -135,6 +135,16 @@ class _ManageFieldPhotosScreenState extends State<ManageFieldPhotosScreen> {
     await _refresh();
   }
 
+  Future<void> _openDetail(BuildContext context, int id) async {
+    if (!context.mounted) return;
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => CapturedPhotoDetailScreen(capturedPhotoId: id),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool fil = context.watch<AppState>().isFilipino;
@@ -189,85 +199,82 @@ class _ManageFieldPhotosScreenState extends State<ManageFieldPhotosScreen> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Row(
-                      children: <Widget>[
-                        SizedBox(
-                          width: 72,
-                          height: 72,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: captureThumbnail(
-                              localImagePath: localPath,
-                              remoteImageUrl: remoteUrl,
-                              images: _images,
-                              displayLogicalWidth: 72,
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: () => _openDetail(context, id),
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Row(
+                        children: <Widget>[
+                          SizedBox(
+                            width: 72,
+                            height: 72,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: captureThumbnail(
+                                localImagePath: localPath,
+                                remoteImageUrl: remoteUrl,
+                                images: _images,
+                                displayLogicalWidth: 72,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Text(
-                                widget.fieldName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 14,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  widget.fieldName,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Mealybug Count: $count',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Confidence: $confidence%',
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                          PopupMenuButton<String>(
+                            onSelected: (v) async {
+                              if (v == 'view') {
+                                await _openDetail(context, id);
+                              } else if (v == 'unassign') {
+                                await _unassign(context, row);
+                              } else if (v == 'delete') {
+                                await _delete(context, row);
+                              }
+                            },
+                            itemBuilder: (_) => <PopupMenuEntry<String>>[
+                              PopupMenuItem<String>(
+                                value: 'view',
+                                child: Text(fil ? 'View details' : 'View details'),
                               ),
-                              const SizedBox(height: 6),
-                              Text(
-                                'Mealybug Count: $count',
-                                style: const TextStyle(fontSize: 12),
+                              PopupMenuItem<String>(
+                                value: 'unassign',
+                                child: Text(
+                                  fil ? 'Unassign from field' : 'Unassign from field',
+                                ),
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Confidence: $confidence%',
-                                style: const TextStyle(fontSize: 12),
+                              PopupMenuItem<String>(
+                                value: 'delete',
+                                child: Text(fil ? 'Delete' : 'Delete'),
                               ),
                             ],
                           ),
-                        ),
-                        PopupMenuButton<String>(
-                          onSelected: (v) async {
-                            if (v == 'view') {
-                              if (!context.mounted) return;
-                              Navigator.push<void>(
-                                context,
-                                MaterialPageRoute<void>(
-                                  builder: (_) => CapturedPhotoDetailScreen(
-                                    capturedPhotoId: id,
-                                  ),
-                                ),
-                              );
-                            } else if (v == 'unassign') {
-                              await _unassign(context, row);
-                            } else if (v == 'delete') {
-                              await _delete(context, row);
-                            }
-                          },
-                          itemBuilder: (_) => <PopupMenuEntry<String>>[
-                            PopupMenuItem<String>(
-                              value: 'view',
-                              child: Text(fil ? 'View details' : 'View details'),
-                            ),
-                            PopupMenuItem<String>(
-                              value: 'unassign',
-                              child:
-                                  Text(fil ? 'Unassign from field' : 'Unassign from field'),
-                            ),
-                            PopupMenuItem<String>(
-                              value: 'delete',
-                              child: Text(fil ? 'Delete' : 'Delete'),
-                            ),
-                          ],
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 );

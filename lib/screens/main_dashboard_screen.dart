@@ -8,12 +8,10 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/supabase_client.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 
 import '../core/admin_session.dart';
 import '../core/app_state.dart';
-import '../core/map_tiles.dart';
 import '../core/dashboard_guide_keys.dart';
 import '../core/more_tab_images.dart';
 import '../core/navigation_guide_sync.dart';
@@ -24,9 +22,13 @@ import '../services/cloud_sync_service.dart';
 import '../services/database_service.dart';
 import '../services/image_storage_service.dart';
 import '../services/dashboard_stats_service.dart';
+import '../utils/smooth_line_chart_path.dart';
 import '../services/field_stats_service.dart';
+import '../services/staff_nav_badges_service.dart';
+import '../services/admin_reports_service.dart';
 import '../widgets/capture_thumbnail.dart';
 import '../widgets/field_preview_image.dart';
+import '../widgets/pine_card.dart';
 import 'disease_info_screen.dart';
 import 'disease_detail_screen.dart';
 import 'disease_by_category_screen.dart';
@@ -37,16 +39,16 @@ import '../utils/scan_flow.dart';
 import 'farm_details_screen.dart';
 import 'field_detail_screen.dart';
 import 'edit_field_screen.dart';
-import '../widgets/online_required_dialog.dart';
 import 'captured_photo_detail_screen.dart';
 import 'admin_reports_screen.dart';
-import '../widgets/esri_imagery_tile_layer.dart';
-import '../widgets/da_access_request_admin_card.dart';
+import 'da_access_requests_screen.dart';
 import '../widgets/da_access_request_card.dart';
-import '../widgets/hex_pulse_marker.dart';
-import '../core/demo_accounts.dart';
+import '../widgets/da_access_request_outcome_dialog.dart';
+import '../widgets/expert_reply_notification_dialog.dart';
+import '../widgets/home_map_preview_section.dart';
+import '../widgets/staff_analytics_panel.dart';
+import '../core/staff_role_labels.dart';
 import '../utils/field_recency.dart';
-import '../widgets/demo_account_switcher.dart';
 
 List<Map<String, dynamic>> _fieldDisplayMapsFromRows(
   List<Map<String, dynamic>> docs, {
@@ -77,26 +79,101 @@ class MainDashboardScreen extends StatefulWidget {
   State<MainDashboardScreen> createState() => _MainDashboardScreenState();
 }
 
-class _MainDashboardScreenState extends State<MainDashboardScreen> {
+class _MainDashboardScreenState extends State<MainDashboardScreen>
+    with WidgetsBindingObserver {
   /// 0=Home, 1=Diagnose, 2=My Fields, 3=More. Bottom bar has 5 items; index 2 is Scan (action).
   int _pageIndex = 0;
+
+  late final DashboardGuideKeyHolder _guideKeys = DashboardGuideKeyHolder();
+
+  AppState? _appState;
+  final StaffNavBadgesService _badgeService = StaffNavBadgesService();
+  StaffNavBadges _badges = const StaffNavBadges();
 
   int get _navIndex => _pageIndex <= 1 ? _pageIndex : _pageIndex + 1;
 
   @override
   void initState() {
     super.initState();
+    DashboardGuideKeyHolder.attach(_guideKeys);
+    WidgetsBinding.instance.addObserver(this);
     NavigationGuideSync.activeStep.addListener(_syncDashboardTabToGuideStep);
-    context.read<AppState>().addListener(_onAppStateChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkNickname());
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _pullCapturedPhotosFromCloud());
+    if (!currentUserJwtStaff()) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _pullCapturedPhotosFromCloud());
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) => _warmFieldsCache());
-    // If the user saved captures while offline, sync them as soon as the app opens
-    // and connectivity/auth is available.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       CloudSyncService().syncInBackground();
     });
+    // ignore: discarded_futures
+    _reloadBadges();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // ignore: discarded_futures
+      _reloadBadges();
+    }
+  }
+
+  Future<void> _reloadBadges() async {
+    final StaffNavBadges? cached = _badgeService.peekCached();
+    if (cached != null && mounted) {
+      setState(() => _badges = cached);
+    }
+    final StaffNavBadges next = await _badgeService.load();
+    if (!mounted) return;
+    setState(() => _badges = next);
+    if (next.farmerDaRequestUnseen) {
+      await showDaAccessRequestOutcomeDialogIfNeeded(context);
+      if (!mounted) return;
+    }
+    if (next.farmerExpertReplyUnseenCount > 0) {
+      await showExpertReplyNotificationsIfNeeded(context);
+      if (!mounted) return;
+    }
+    if (next.farmerDaRequestUnseen || next.farmerExpertReplyUnseenCount > 0) {
+      final StaffNavBadges refreshed = await _badgeService.load();
+      if (!mounted) return;
+      setState(() => _badges = refreshed);
+    }
+  }
+
+  Future<void> _onCenterNavTap() async {
+    if (currentUserJwtFullAdmin()) {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => const DaAccessRequestsScreen(),
+        ),
+      );
+    } else if (currentUserJwtDa()) {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => const AdminReportsScreen(
+            initialFilter: AdminReportFilter.pendingReply,
+          ),
+        ),
+      );
+    } else {
+      await startFieldFirstScan(context);
+    }
+    if (!mounted) return;
+    // ignore: discarded_futures
+    _reloadBadges();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final AppState appState = context.read<AppState>();
+    if (!identical(_appState, appState)) {
+      _appState?.removeListener(_onAppStateChanged);
+      _appState = appState;
+      _appState!.addListener(_onAppStateChanged);
+    }
   }
 
   Future<void> _warmFieldsCache() async {
@@ -117,8 +194,10 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
   @override
   void dispose() {
+    DashboardGuideKeyHolder.detach(_guideKeys);
+    WidgetsBinding.instance.removeObserver(this);
     NavigationGuideSync.activeStep.removeListener(_syncDashboardTabToGuideStep);
-    context.read<AppState>().removeListener(_onAppStateChanged);
+    _appState?.removeListener(_onAppStateChanged);
     super.dispose();
   }
 
@@ -216,11 +295,26 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                   ),
                   child: IndexedStack(
                     index: _pageIndex,
-                    children: const <Widget>[
-                      _HomeTab(key: ValueKey<int>(0)),
-                      _DiagnoseTab(key: ValueKey<int>(1)),
-                      _MyFieldsTab(key: ValueKey<int>(2)),
-                      _MoreTab(key: ValueKey<int>(3)),
+                    children: <Widget>[
+                      _HomeTab(
+                        key: const ValueKey<int>(0),
+                        guideKeys: _guideKeys,
+                        badges: _badges,
+                        onOpenStaffQueue: _onCenterNavTap,
+                      ),
+                      _DiagnoseTab(
+                        key: const ValueKey<int>(1),
+                        guideKeys: _guideKeys,
+                      ),
+                      _MyFieldsTab(
+                        key: const ValueKey<int>(2),
+                        guideKeys: _guideKeys,
+                      ),
+                      _MoreTab(
+                        key: const ValueKey<int>(3),
+                        guideKeys: _guideKeys,
+                        onBadgesRefresh: _reloadBadges,
+                      ),
                     ],
                   ),
                 ),
@@ -236,7 +330,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   Widget _buildBottomNav(BuildContext context) {
     final ColorScheme cs = Theme.of(context).colorScheme;
     return Container(
-      key: DashboardGuideKeys.bottomNavBarKey,
+      key: _guideKeys.bottomNavBarKey,
       padding: EdgeInsets.only(
         left: 8,
         right: 8,
@@ -245,6 +339,13 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
       ),
       decoration: BoxDecoration(
         color: cs.surface,
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 14,
+            offset: const Offset(0, -3),
+          ),
+        ],
         border: Border(
           top: BorderSide(
             color: cs.outlineVariant.withValues(alpha: 0.65),
@@ -255,39 +356,50 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: <Widget>[
           _NavItem(
-            key: DashboardGuideKeys.homeNavKey,
+            key: _guideKeys.homeNavKey,
             icon: Icons.home_outlined,
             label: 'Home',
             selected: _navIndex == 0,
             onTap: () => setState(() => _pageIndex = 0),
           ),
           _NavItem(
-            key: DashboardGuideKeys.diagnoseNavKey,
+            key: _guideKeys.diagnoseNavKey,
             icon: Icons.shield_outlined,
             label: 'Diagnose',
             selected: _navIndex == 1,
             onTap: () => setState(() => _pageIndex = 1),
           ),
-          _ScanButton(
-            key: DashboardGuideKeys.scanButtonKey,
+          _CenterActionButton(
+            key: _guideKeys.scanButtonKey,
+            icon: currentUserJwtFullAdmin()
+                ? Icons.how_to_reg_outlined
+                : currentUserJwtDa()
+                    ? Icons.rate_review_outlined
+                    : Icons.photo_camera,
+            badgeCount: _badges.centerBadgeCount,
             onTap: () {
               // ignore: discarded_futures
-              startFieldFirstScan(context);
+              _onCenterNavTap();
             },
           ),
           _NavItem(
-            key: DashboardGuideKeys.myFieldsNavKey,
+            key: _guideKeys.myFieldsNavKey,
             icon: Icons.landscape_outlined,
             label: 'My Fields',
             selected: _navIndex == 3,
             onTap: () => setState(() => _pageIndex = 2),
           ),
           _NavItem(
-            key: DashboardGuideKeys.moreNavKey,
+            key: _guideKeys.moreNavKey,
             icon: Icons.grid_view_rounded,
             label: 'More',
             selected: _navIndex == 4,
-            onTap: () => setState(() => _pageIndex = 3),
+            badgeCount: _badges.moreBadgeCount,
+            onTap: () {
+              setState(() => _pageIndex = 3);
+              // ignore: discarded_futures
+              _reloadBadges();
+            },
           ),
         ],
       ),
@@ -302,39 +414,75 @@ class _NavItem extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    this.badgeCount = 0,
   });
 
   final IconData icon;
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
     final ColorScheme cs = Theme.of(context).colorScheme;
     final bool dark = Theme.of(context).brightness == Brightness.dark;
-    final Color inactiveIcon = dark ? Colors.white54 : cs.onSurfaceVariant;
-    final Color inactiveLabel = dark ? Colors.white54 : cs.onSurfaceVariant;
+    final Color inactiveIcon = dark ? Colors.white : cs.onSurfaceVariant;
+    final Color inactiveLabel = dark ? Colors.white : cs.onSurfaceVariant;
     final Color labelColor = selected ? cs.primary : inactiveLabel;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(14),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: selected ? cs.primary : Colors.transparent,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                icon,
-                size: 24,
-                color: selected ? cs.onPrimary : inactiveIcon,
-              ),
+            Stack(
+              clipBehavior: Clip.none,
+              children: <Widget>[
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOut,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? (dark
+                            ? cs.primary.withValues(alpha: 0.22)
+                            : cs.primaryContainer.withValues(alpha: 0.92))
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(14),
+                    border: selected
+                        ? Border.all(
+                            color: cs.primary.withValues(alpha: 0.28),
+                          )
+                        : null,
+                    boxShadow: selected && !dark
+                        ? <BoxShadow>[
+                            BoxShadow(
+                              color: cs.primary.withValues(alpha: 0.12),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 24,
+                    color: selected ? cs.primary : inactiveIcon,
+                  ),
+                ),
+                if (badgeCount > 0)
+                  Positioned(
+                    right: 2,
+                    top: 2,
+                    child: _NavBadge(count: badgeCount),
+                  ),
+              ],
             ),
             const SizedBox(height: 2),
             Text(
@@ -352,35 +500,85 @@ class _NavItem extends StatelessWidget {
   }
 }
 
-class _ScanButton extends StatelessWidget {
-  const _ScanButton({super.key, required this.onTap});
+class _NavBadge extends StatelessWidget {
+  const _NavBadge({required this.count});
 
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final String label = count > 9 ? '9+' : '$count';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+      decoration: BoxDecoration(
+        color: Colors.red.shade700,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white, width: 1.5),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          height: 1,
+        ),
+      ),
+    );
+  }
+}
+
+class _CenterActionButton extends StatelessWidget {
+  const _CenterActionButton({
+    super.key,
+    required this.icon,
+    required this.onTap,
+    this.badgeCount = 0,
+  });
+
+  final IconData icon;
   final VoidCallback onTap;
+  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        width: 52,
-        height: 52,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.primary,
-          shape: BoxShape.circle,
-          boxShadow: <BoxShadow>[
-            BoxShadow(
-              color:
-                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.4),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: <Widget>[
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primary,
+              shape: BoxShape.circle,
+              boxShadow: <BoxShadow>[
+                BoxShadow(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withValues(alpha: 0.4),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: Icon(
-          Icons.photo_camera,
-          color: Theme.of(context).colorScheme.onPrimary,
-          size: 28,
-        ),
+            child: Icon(
+              icon,
+              color: Theme.of(context).colorScheme.onPrimary,
+              size: 28,
+            ),
+          ),
+          if (badgeCount > 0)
+            Positioned(
+              right: -2,
+              top: -2,
+              child: _NavBadge(count: badgeCount),
+            ),
+        ],
       ),
     );
   }
@@ -388,7 +586,16 @@ class _ScanButton extends StatelessWidget {
 
 // --- Home tab: logo, greeting, Saved Images, Map Overview ---
 class _HomeTab extends StatelessWidget {
-  const _HomeTab({super.key});
+  const _HomeTab({
+    super.key,
+    required this.guideKeys,
+    required this.badges,
+    required this.onOpenStaffQueue,
+  });
+
+  final DashboardGuideKeyHolder guideKeys;
+  final StaffNavBadges badges;
+  final Future<void> Function() onOpenStaffQueue;
 
   @override
   Widget build(BuildContext context) {
@@ -400,6 +607,8 @@ class _HomeTab extends StatelessWidget {
             'User';
     final String greeting = _greeting();
     final bool fil = appState.isFilipino;
+    final bool staff = currentUserJwtStaff();
+    final bool fullAdmin = currentUserJwtFullAdmin();
     return CustomScrollView(
       slivers: <Widget>[
         SliverToBoxAdapter(
@@ -409,7 +618,7 @@ class _HomeTab extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 KeyedSubtree(
-                  key: DashboardGuideKeys.homeBrandingKey,
+                  key: guideKeys.homeBrandingKey,
                   child: Center(
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -432,7 +641,7 @@ class _HomeTab extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 KeyedSubtree(
-                  key: DashboardGuideKeys.homeGreetingKey,
+                  key: guideKeys.homeGreetingKey,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
@@ -447,9 +656,13 @@ class _HomeTab extends StatelessWidget {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        fil
-                            ? 'Bantayan ang inyong pinya at panatilihing malusog ang taniman.'
-                            : 'Monitor your pineapple crops and keep them healthy.',
+                        staff
+                            ? (fil
+                                ? 'Suriin ang mga ulat ng magsasaka at tugunan ang mga kahilingan.'
+                                : 'Review farmer reports and respond to access requests.')
+                            : (fil
+                                ? 'Bantayan ang inyong pinya at panatilihing malusog ang taniman.'
+                                : 'Monitor your pineapple crops and keep them healthy.'),
                         style: TextStyle(
                           fontSize: 14,
                           color: context.pineTextSecondary,
@@ -459,240 +672,63 @@ class _HomeTab extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (demoAccountSwitcherEnabled()) ...<Widget>[
-                  const SizedBox(height: 16),
-                  const DemoAccountSwitcher(),
-                ],
               ],
             ),
           ),
         ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-            child: _HomeStatHeader(uid: uid, fil: fil),
-          ),
-        ),
-        SliverToBoxAdapter(
-          child: KeyedSubtree(
-            key: DashboardGuideKeys.homeSavedImagesKey,
+        if (!staff)
+          SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    fil ? 'Mga Larawang Nai-save' : 'Saved Images',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: context.pineTextPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _RecentCapturesStrip(uid: uid, fil: fil),
-                ],
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: _HomeStatHeader(
+                uid: uid,
+                fil: fil,
+                guideKeys: guideKeys,
               ),
             ),
           ),
-        ),
-        SliverToBoxAdapter(
-          child: KeyedSubtree(
-            key: DashboardGuideKeys.homeMapPreviewKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
-                  child: Text(
-                    fil
-                        ? 'Preview ng Mapa: Polomolok'
-                        : 'Map Preview: Polomolok',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: context.pineTextPrimary,
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: SizedBox(
-                      height: 200,
-                      child: Stack(
-                        children: [
-                          FutureBuilder<List<Map<String, dynamic>>>(
-                            future: () async {
-                              final String? userId = uid;
-                              if (userId == null) {
-                                return <Map<String, dynamic>>[];
-                              }
-                              final DatabaseService db = DatabaseService();
-                              await db.initialize();
-                              // Use local captures so pins show even if temporarily offline.
-                              return db.getCapturedPhotos(
-                                  limit: 250, userId: userId);
-                            }(),
-                            builder: (context, snap) {
-                              final List<Map<String, dynamic>> rows =
-                                  snap.data ?? const <Map<String, dynamic>>[];
-                              final List<Map<String, dynamic>> withGps = rows
-                                  .where((r) =>
-                                      r['latitude'] != null &&
-                                      r['longitude'] != null)
-                                  .toList();
-                              final List<Map<String, dynamic>> pins =
-                                  withGps.take(60).toList();
-
-                              LatLng center = const LatLng(6.2167, 125.0667);
-                              if (pins.isNotEmpty) {
-                                center = LatLng(
-                                  (pins.first['latitude'] as num).toDouble(),
-                                  (pins.first['longitude'] as num).toDouble(),
-                                );
-                              }
-
-                              return FlutterMap(
-                                options: MapOptions(
-                                  initialCenter: center,
-                                  initialZoom: pins.isNotEmpty ? 15.0 : 11.8,
-                                  interactionOptions: const InteractionOptions(
-                                    flags: InteractiveFlag.none,
-                                  ),
-                                ),
-                                children: [
-                                  EsriImageryTileLayer(
-                                    maxZoom:
-                                        MapTiles.maxZoomSatellite.toDouble(),
-                                    maxNativeZoom:
-                                        MapTiles.maxNativeZoomSatellite,
-                                  ),
-                                  if (pins.isNotEmpty)
-                                    MarkerLayer(
-                                      markers: pins.map((r) {
-                                        final double lat =
-                                            (r['latitude'] as num).toDouble();
-                                        final double lng =
-                                            (r['longitude'] as num).toDouble();
-                                        final int count =
-                                            (r['count'] as num?)?.toInt() ?? 0;
-                                        final double sev =
-                                            (count / 20.0).clamp(0.0, 1.0);
-                                        final Color c = Color.lerp(
-                                              const Color(0xFF2ECC71),
-                                              const Color(0xFFE74C3C),
-                                              sev,
-                                            ) ??
-                                            const Color(0xFF2ECC71);
-                                        return Marker(
-                                          point: LatLng(lat, lng),
-                                          width: 44,
-                                          height: 44,
-                                          alignment: Alignment.center,
-                                          child: HexPulseMarker(
-                                            color: c,
-                                            size: 28,
-                                            pulse: false,
-                                            icon: Icons.location_on,
-                                          ),
-                                        );
-                                      }).toList(),
-                                    ),
-                                ],
-                              );
-                            },
-                          ),
-                          Positioned.fill(
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.bottomCenter,
-                                  end: Alignment.topCenter,
-                                  colors: [
-                                    Colors.black.withValues(alpha: 0.36),
-                                    Colors.transparent,
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          Positioned.fill(
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                onTap: () async {
-                                  if (!await ensureOnline(context)) return;
-                                  if (!context.mounted) return;
-                                  Navigator.push<Object?>(
-                                    context,
-                                    MaterialPageRoute<Object?>(
-                                      builder: (_) => const DetectionsMapScreen(
-                                        initialShowGeoFence: true,
-                                        initialShowGrid: false,
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            left: 12,
-                            right: 12,
-                            bottom: 10,
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    'Polomolok, South Cotabato',
-                                    style: TextStyle(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onPrimary,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                                FilledButton.icon(
-                                  onPressed: () async {
-                                    if (!await ensureOnline(context)) return;
-                                    if (!context.mounted) return;
-                                    Navigator.push<Object?>(
-                                      context,
-                                      MaterialPageRoute<Object?>(
-                                        builder: (_) =>
-                                            const DetectionsMapScreen(
-                                          initialShowGeoFence: true,
-                                          initialShowGrid: false,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                  icon: const Icon(Icons.open_in_new, size: 16),
-                                  label: Text(fil ? 'Buksan' : 'Open'),
-                                  style: FilledButton.styleFrom(
-                                    backgroundColor:
-                                        Theme.of(context).colorScheme.primary,
-                                    foregroundColor:
-                                        Theme.of(context).colorScheme.onPrimary,
-                                    visualDensity: VisualDensity.compact,
-                                    // Some global button themes use infinite-width constraints.
-                                    // This button sits in a Row, so force a finite size.
-                                    minimumSize: const Size(0, 36),
-                                    maximumSize: const Size(160, 36),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+        if (staff)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+              child: _StaffHomePanel(
+                badges: badges,
+                fullAdmin: fullAdmin,
+                onOpenStaffQueue: onOpenStaffQueue,
+              ),
+            ),
+          )
+        else
+          SliverToBoxAdapter(
+            child: KeyedSubtree(
+              key: guideKeys.homeSavedImagesKey,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      fil ? 'Mga Larawang Nai-save' : 'Saved Images',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: context.pineTextPrimary,
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 8),
+                    _RecentCapturesStrip(uid: uid, fil: fil),
+                  ],
                 ),
-              ],
+              ),
+            ),
+          ),
+        SliverToBoxAdapter(
+          child: KeyedSubtree(
+            key: guideKeys.homeMapPreviewKey,
+            child: HomeMapPreviewSection(
+              uid: uid,
+              fil: fil,
+              staffMode: staff,
             ),
           ),
         ),
@@ -708,11 +744,132 @@ class _HomeTab extends StatelessWidget {
   }
 }
 
+class _StaffHomePanel extends StatelessWidget {
+  const _StaffHomePanel({
+    required this.badges,
+    required this.fullAdmin,
+    required this.onOpenStaffQueue,
+  });
+
+  final StaffNavBadges badges;
+  final bool fullAdmin;
+  final Future<void> Function() onOpenStaffQueue;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Text(
+          'Staff dashboard',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: context.pineTextPrimary,
+          ),
+        ),
+        const SizedBox(height: 10),
+        if (fullAdmin)
+          _StaffHomeTile(
+            icon: Icons.how_to_reg_outlined,
+            title: staffAccessRequestsTitle,
+            subtitle: badges.adminPendingDaRequests > 0
+                ? '${badges.adminPendingDaRequests} pending review'
+                : 'Review staff access applications',
+            badgeCount: badges.adminPendingDaRequests,
+            onTap: () {
+              // ignore: discarded_futures
+              onOpenStaffQueue();
+            },
+          ),
+        if (fullAdmin) const SizedBox(height: 10),
+        _StaffHomeTile(
+          icon: Icons.rate_review_outlined,
+          title: 'Farmer reports',
+          subtitle: badges.staffPendingReports > 0
+              ? '${badges.staffPendingReports} awaiting your advice'
+              : 'Review positive scans and write expert advice',
+          badgeCount: fullAdmin ? 0 : badges.staffPendingReports,
+          onTap: () {
+            Navigator.of(context).push<void>(
+              MaterialPageRoute<void>(
+                builder: (_) => AdminReportsScreen(
+                  initialFilter: fullAdmin
+                      ? AdminReportFilter.all
+                      : AdminReportFilter.pendingReply,
+                ),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Use the center button in the bottom bar for your main queue.',
+          style: TextStyle(fontSize: 13, color: context.pineTextSecondary, height: 1.35),
+        ),
+      ],
+    );
+  }
+}
+
+class _StaffHomeTile extends StatelessWidget {
+  const _StaffHomeTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.badgeCount = 0,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  final int badgeCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme cs = Theme.of(context).colorScheme;
+    return PineCard(
+      onTap: onTap,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        leading: Stack(
+          clipBehavior: Clip.none,
+          children: <Widget>[
+            CircleAvatar(
+              backgroundColor: cs.primary.withValues(alpha: 0.12),
+              child: Icon(icon, color: cs.primary),
+            ),
+            if (badgeCount > 0)
+              Positioned(
+                right: -2,
+                top: -2,
+                child: _NavBadge(count: badgeCount),
+              ),
+          ],
+        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+        subtitle: Text(
+          subtitle,
+          style: TextStyle(color: context.pineTextSecondary),
+        ),
+        trailing: const Icon(Icons.chevron_right),
+      ),
+    );
+  }
+}
+
 class _HomeStatHeader extends StatelessWidget {
-  const _HomeStatHeader({required this.uid, required this.fil});
+  const _HomeStatHeader({
+    required this.uid,
+    required this.fil,
+    required this.guideKeys,
+  });
 
   final String? uid;
   final bool fil;
+  final DashboardGuideKeyHolder guideKeys;
 
   @override
   Widget build(BuildContext context) {
@@ -728,7 +885,7 @@ class _HomeStatHeader extends StatelessWidget {
           children: [
             Expanded(
               child: KeyedSubtree(
-                key: DashboardGuideKeys.homeTotalFieldsKey,
+                key: guideKeys.homeTotalFieldsKey,
                 child: _HomeMiniStat(
                   icon: Icons.landscape_outlined,
                   label: fil ? 'Kabuuang sakahan' : 'Total fields',
@@ -739,7 +896,7 @@ class _HomeStatHeader extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(
               child: KeyedSubtree(
-                key: DashboardGuideKeys.homeRegionKey,
+                key: guideKeys.homeRegionKey,
                 child: const _HomeMiniStat(
                   icon: Icons.map_outlined,
                   label: 'Region',
@@ -767,13 +924,8 @@ class _HomeMiniStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return PineCard(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: context.pineCardSurface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-      ),
       child: Row(
         children: [
           Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
@@ -1039,17 +1191,12 @@ class _RecentCapturesStripState extends State<_RecentCapturesStrip> {
                           },
                         );
                       },
-                child: Container(
+                child: SizedBox(
                   width: 128,
-                  decoration: BoxDecoration(
-                    color: context.pineCardSurface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                        color: Theme.of(context).colorScheme.outlineVariant),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Stack(
+                  child: PineCard(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Stack(
                       fit: StackFit.expand,
                       children: <Widget>[
                         localPath == null
@@ -1119,7 +1266,8 @@ class _RecentCapturesStripState extends State<_RecentCapturesStrip> {
                     ),
                   ),
                 ),
-              );
+              ),
+            );
             },
           ),
         );
@@ -1130,7 +1278,12 @@ class _RecentCapturesStripState extends State<_RecentCapturesStrip> {
 
 // --- Diagnose tab: real stats from detections, line chart, My Fields ---
 class _DiagnoseTab extends StatelessWidget {
-  const _DiagnoseTab({super.key});
+  const _DiagnoseTab({
+    super.key,
+    required this.guideKeys,
+  });
+
+  final DashboardGuideKeyHolder guideKeys;
 
   @override
   Widget build(BuildContext context) {
@@ -1144,6 +1297,9 @@ class _DiagnoseTab extends StatelessWidget {
           style: TextStyle(color: context.pineTextPrimary),
         ),
       );
+    }
+    if (currentUserJwtStaff()) {
+      return StaffAnalyticsTab(fil: fil);
     }
     final DatabaseService localDb = DatabaseService();
 
@@ -1168,7 +1324,7 @@ class _DiagnoseTab extends StatelessWidget {
         slivers: <Widget>[
           SliverToBoxAdapter(
             child: KeyedSubtree(
-              key: DashboardGuideKeys.diagnoseSearchDiseasesKey,
+              key: guideKeys.diagnoseSearchDiseasesKey,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
                 child: Column(
@@ -1184,7 +1340,7 @@ class _DiagnoseTab extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    GestureDetector(
+                    PineCard(
                       onTap: () {
                         Navigator.push<void>(
                           context,
@@ -1192,30 +1348,21 @@ class _DiagnoseTab extends StatelessWidget {
                               builder: (_) => const DiseaseInfoScreen()),
                         );
                       },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 14),
-                        decoration: BoxDecoration(
-                          color: context.pineCardSurface,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                              color:
-                                  Theme.of(context).colorScheme.outlineVariant),
-                        ),
-                        child: Row(
-                          children: <Widget>[
-                            Icon(Icons.search,
-                                color: context.pineTextSecondary, size: 22),
-                            const SizedBox(width: 12),
-                            Text(
-                              'Search for Diseases',
-                              style: TextStyle(
-                                fontSize: 15,
-                                color: context.pineTextSecondary,
-                              ),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                      child: Row(
+                        children: <Widget>[
+                          Icon(Icons.search,
+                              color: context.pineTextSecondary, size: 22),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Search for Diseases',
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: context.pineTextSecondary,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -1225,7 +1372,7 @@ class _DiagnoseTab extends StatelessWidget {
           ),
           SliverToBoxAdapter(
             child: KeyedSubtree(
-              key: DashboardGuideKeys.diagnoseWeekStatsKey,
+              key: guideKeys.diagnoseWeekStatsKey,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
                 child: Column(
@@ -1240,18 +1387,12 @@ class _DiagnoseTab extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Container(
+                    PineCard(
                       padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: context.pineCardSurface,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withValues(alpha: 0.35),
-                        ),
-                      ),
+                      borderColor: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withValues(alpha: 0.35),
                       child: Row(
                         children: [
                           Icon(Icons.photo_library_outlined,
@@ -1296,7 +1437,7 @@ class _DiagnoseTab extends StatelessWidget {
           ),
           SliverToBoxAdapter(
             child: KeyedSubtree(
-              key: DashboardGuideKeys.diagnosePestsChartKey,
+              key: guideKeys.diagnosePestsChartKey,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
                 child: Column(
@@ -1323,7 +1464,7 @@ class _DiagnoseTab extends StatelessWidget {
           ),
           SliverToBoxAdapter(
             child: KeyedSubtree(
-              key: DashboardGuideKeys.diagnoseMyFieldsStripKey,
+              key: guideKeys.diagnoseMyFieldsStripKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: <Widget>[
@@ -1348,43 +1489,38 @@ class _DiagnoseTab extends StatelessWidget {
       );
     }
 
+    final int photosRevision = context.watch<AppState>().capturedPhotosRevision;
+
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: detectionsRealtimeStream(),
       builder: (BuildContext context,
           AsyncSnapshot<List<Map<String, dynamic>>> snapshot) {
-        if (snapshot.hasError) {
-          return FutureBuilder<DashboardStats>(
-            future: loadLocalStats(),
-            builder:
-                (BuildContext context, AsyncSnapshot<DashboardStats> snap) {
-              if (!snap.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              return buildDiagnose(snap.data!);
-            },
-          );
-        }
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final List<Map<String, dynamic>> docs = snapshot.data!;
-        if (docs.isEmpty) {
-          return FutureBuilder<DashboardStats>(
-            future: loadLocalStats(),
-            builder:
-                (BuildContext context, AsyncSnapshot<DashboardStats> snap) {
-              if (!snap.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              return buildDiagnose(snap.data!);
-            },
-          );
-        }
-
-        final DashboardStats stats =
-            DashboardStatsCalculator.fromDetectionMaps(docs);
-        return buildDiagnose(stats);
+        return FutureBuilder<DashboardStats>(
+          key: ValueKey<int>(photosRevision),
+          future: loadLocalStats(),
+          builder: (BuildContext context, AsyncSnapshot<DashboardStats> localSnap) {
+            if (!localSnap.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final DashboardStats localStats = localSnap.data!;
+            if (snapshot.hasError) {
+              return buildDiagnose(localStats);
+            }
+            final List<Map<String, dynamic>> docs =
+                snapshot.data ?? const <Map<String, dynamic>>[];
+            if (docs.isEmpty) {
+              return buildDiagnose(localStats);
+            }
+            final DashboardStats remoteStats =
+                DashboardStatsCalculator.fromDetectionMaps(docs);
+            return buildDiagnose(
+              DashboardStatsCalculator.farmerWeeklyStats(
+                local: localStats,
+                remote: remoteStats,
+              ),
+            );
+          },
+        );
       },
     );
   }
@@ -1398,21 +1534,8 @@ class _StatCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return PineCard(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
-      decoration: BoxDecoration(
-        color: context.pineCardSurface,
-        borderRadius: BorderRadius.circular(16),
-        border:
-            Border.all(color: Theme.of(context).colorScheme.primary, width: 2),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
       child: Column(
         children: <Widget>[
           Text(
@@ -1455,15 +1578,11 @@ class _PestsChartFromData extends StatelessWidget {
     final bool hasData = dailyCounts.any((int c) => c > 0);
     final bool dark = Theme.of(context).brightness == Brightness.dark;
     final ColorScheme cs = Theme.of(context).colorScheme;
-    return Container(
-      height: 200,
+    return PineCard(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: context.pineCardSurface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-      ),
-      child: hasData
+      child: SizedBox(
+        height: 168,
+        child: hasData
           ? RepaintBoundary(
               child: CustomPaint(
                 painter: _RealLineChartPainter(
@@ -1510,6 +1629,7 @@ class _PestsChartFromData extends StatelessWidget {
                 ],
               ),
             ),
+      ),
     );
   }
 }
@@ -1577,7 +1697,7 @@ class _RealLineChartPainter extends CustomPainter {
     const int yTicks = 4;
     for (int i = 0; i <= yTicks; i++) {
       final double t = i / yTicks;
-      final double yValue = (rangeY * (1.0 - t));
+      final double yValue = rangeY * t;
       final double y = padTop + chartH - t * chartH;
 
       final Paint gridPaint = Paint()
@@ -1671,49 +1791,9 @@ class _RealLineChartPainter extends CustomPainter {
       peakGuidePaint,
     );
 
-    // Build a smooth path using Catmull-Rom -> Bezier conversion
-    Path linePath = Path()..moveTo(points[0].dx, points[0].dy);
-    for (int i = 0; i < pointCount - 1; i++) {
-      final Offset p0 = points[i == 0 ? i : i - 1];
-      final Offset p1 = points[i];
-      final Offset p2 = points[i + 1];
-      final Offset p3 = points[i + 2 < pointCount ? i + 2 : i + 1];
-
-      // Tension = 1.0
-      final Offset cp1 = Offset(
-        p1.dx + (p2.dx - p0.dx) / 6.0,
-        p1.dy + (p2.dy - p0.dy) / 6.0,
-      );
-      final Offset cp2 = Offset(
-        p2.dx - (p3.dx - p1.dx) / 6.0,
-        p2.dy - (p3.dy - p1.dy) / 6.0,
-      );
-
-      linePath.cubicTo(cp1.dx, cp1.dy, cp2.dx, cp2.dy, p2.dx, p2.dy);
-    }
-
-    // Area fill under the curve
-    Path areaPath = Path()..moveTo(points[0].dx, baseY);
-    areaPath.lineTo(points[0].dx, points[0].dy);
-    for (int i = 0; i < pointCount - 1; i++) {
-      final Offset p0 = points[i == 0 ? i : i - 1];
-      final Offset p1 = points[i];
-      final Offset p2 = points[i + 1];
-      final Offset p3 = points[i + 2 < pointCount ? i + 2 : i + 1];
-
-      final Offset cp1 = Offset(
-        p1.dx + (p2.dx - p0.dx) / 6.0,
-        p1.dy + (p2.dy - p0.dy) / 6.0,
-      );
-      final Offset cp2 = Offset(
-        p2.dx - (p3.dx - p1.dx) / 6.0,
-        p2.dy - (p3.dy - p1.dy) / 6.0,
-      );
-
-      areaPath.cubicTo(cp1.dx, cp1.dy, cp2.dx, cp2.dy, p2.dx, p2.dy);
-    }
-    areaPath.lineTo(points[pointCount - 1].dx, baseY);
-    areaPath.close();
+    // Smooth monotonic line + area (no baseline overshoot)
+    final Path linePath = buildMonotonicSmoothLinePath(points);
+    final Path areaPath = buildMonotonicSmoothAreaPath(points, baseY);
 
     final Paint areaPaint = Paint()
       ..style = PaintingStyle.fill
@@ -1812,7 +1892,12 @@ class _RealLineChartPainter extends CustomPainter {
 
 // --- My Fields tab: tabs (My Fields | Reminders), grid + Add New Field ---
 class _MyFieldsTab extends StatelessWidget {
-  const _MyFieldsTab({super.key});
+  const _MyFieldsTab({
+    super.key,
+    required this.guideKeys,
+  });
+
+  final DashboardGuideKeyHolder guideKeys;
 
   @override
   Widget build(BuildContext context) {
@@ -1822,7 +1907,7 @@ class _MyFieldsTab extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           KeyedSubtree(
-            key: DashboardGuideKeys.myFieldsHeaderTabsKey,
+            key: guideKeys.myFieldsHeaderTabsKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
@@ -1859,7 +1944,7 @@ class _MyFieldsTab extends StatelessWidget {
                           ),
                           child: Text(
                             currentUserJwtDa()
-                                ? 'DA • all farms'
+                                ? '$staffRoleSingular • all farms'
                                 : 'Admin • all farms',
                             style: TextStyle(
                               fontSize: 11,
@@ -1908,7 +1993,7 @@ class _MyFieldsTab extends StatelessWidget {
           const SizedBox(height: 16),
           Expanded(
             child: KeyedSubtree(
-              key: DashboardGuideKeys.myFieldsGridKey,
+              key: guideKeys.myFieldsGridKey,
               child: const TabBarView(
                 children: <Widget>[_MyFieldsGrid(), _RemindersPlaceholder()],
               ),
@@ -2199,68 +2284,63 @@ class _FieldGridCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final String? ownerLine = field['ownerLabel'] as String?;
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            Expanded(
-              flex: 5,
-              child: Stack(
-                fit: StackFit.expand,
-                children: <Widget>[
-                  Positioned.fill(
-                    child: FieldPreviewImage(
-                      previewPath: field['previewImagePath'] as String?,
-                      fallbackLogicalWidth: 220,
-                      placeholderIconSize: 48,
-                    ),
+    return PineCard(
+      onTap: onTap,
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Expanded(
+            flex: 5,
+            child: Stack(
+              fit: StackFit.expand,
+              children: <Widget>[
+                Positioned.fill(
+                  child: FieldPreviewImage(
+                    previewPath: field['previewImagePath'] as String?,
+                    fallbackLogicalWidth: 220,
+                    placeholderIconSize: 48,
                   ),
-                  Positioned(
-                    left: 6,
-                    bottom: 6,
-                    child: _FieldPhotoCountPill(
-                      count: (field['imageCount'] as num?)?.toInt() ?? 0,
-                    ),
+                ),
+                Positioned(
+                  left: 6,
+                  bottom: 6,
+                  child: _FieldPhotoCountPill(
+                    count: (field['imageCount'] as num?)?.toInt() ?? 0,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
+          ),
+          Padding(
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  field['name'] as String,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: context.pineTextPrimary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (ownerLine != null && ownerLine.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: 2),
                   Text(
-                    field['name'] as String,
+                    'Owner: $ownerLine',
                     style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: context.pineTextPrimary,
+                      fontSize: 10,
+                      color: context.pineTextSecondary,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (ownerLine != null && ownerLine.isNotEmpty) ...<Widget>[
-                    const SizedBox(height: 2),
-                    Text(
-                      'Owner: $ownerLine',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: context.pineTextSecondary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                  if ((field['address'] as String).isNotEmpty) ...[
-                    const SizedBox(height: 2),
+                ],
+                if ((field['address'] as String).isNotEmpty) ...[
+                  const SizedBox(height: 2),
                     Text(
                       'Address: ${field['address']}',
                       style: TextStyle(
@@ -2276,7 +2356,6 @@ class _FieldGridCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
     );
   }
 }
@@ -2288,34 +2367,24 @@ class _AddFieldCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.6),
-            width: 2),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Icon(Icons.add,
-                  size: 48, color: Theme.of(context).colorScheme.primary),
-              const SizedBox(height: 8),
-              Text(
-                'Add New Field',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+    return PineCard(
+      onTap: onTap,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            Icon(Icons.add,
+                size: 48, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(height: 8),
+            Text(
+              'Add New Field',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).colorScheme.primary,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -2328,6 +2397,7 @@ class _RemindersPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool fil = context.watch<AppState>().isFilipino;
+    final bool staff = currentUserJwtStaff();
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -2347,25 +2417,31 @@ class _RemindersPlaceholder extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              fil
-                  ? 'Dito lalabas ang mga paalala sa field checks, susunod na pagkuha ng larawan, at mga follow-up na dapat gawin.'
-                  : 'This page shows reminders for field checks, next capture schedule, and pending follow-up surveys.',
+              staff
+                  ? (fil
+                      ? 'Dito lalabas ang mga paalala sa mga ulat ng magsasaka at kahilingan sa access.'
+                      : 'Reminders for farmer reports and access requests will appear here.')
+                  : (fil
+                      ? 'Dito lalabas ang mga paalala sa field checks, susunod na pagkuha ng larawan, at mga follow-up na dapat gawin.'
+                      : 'This page shows reminders for field checks, next capture schedule, and pending follow-up surveys.'),
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 14, color: context.pineTextSecondary),
             ),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: () {
-                // ignore: discarded_futures
-                startFieldFirstScan(context);
-              },
-              icon: const Icon(Icons.add_photo_alternate, size: 20),
-              label: const Text('Add Photo'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                foregroundColor: Theme.of(context).colorScheme.onPrimary,
+            if (!staff) ...<Widget>[
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: () {
+                  // ignore: discarded_futures
+                  startFieldFirstScan(context);
+                },
+                icon: const Icon(Icons.add_photo_alternate, size: 20),
+                label: const Text('Add Photo'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
@@ -2375,7 +2451,14 @@ class _RemindersPlaceholder extends StatelessWidget {
 
 // --- More tab: profile card, General Info, Common Diseases, Explore by parts ---
 class _MoreTab extends StatelessWidget {
-  const _MoreTab({super.key});
+  const _MoreTab({
+    super.key,
+    required this.guideKeys,
+    required this.onBadgesRefresh,
+  });
+
+  final DashboardGuideKeyHolder guideKeys;
+  final Future<void> Function() onBadgesRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -2411,7 +2494,7 @@ class _MoreTab extends StatelessWidget {
             ),
             SliverToBoxAdapter(
               child: KeyedSubtree(
-                key: DashboardGuideKeys.moreProfileKey,
+                key: guideKeys.moreProfileKey,
                 child: uid == null
                     ? const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 20),
@@ -2456,55 +2539,17 @@ class _MoreTab extends StatelessWidget {
                       ),
               ),
             ),
-            const SliverToBoxAdapter(
-              child: DaAccessRequestCard(),
+            SliverToBoxAdapter(
+              child: DaAccessRequestCard(
+                onRequestStatusSeen: () {
+                  // ignore: discarded_futures
+                  onBadgesRefresh();
+                },
+              ),
             ),
-            if (currentUserJwtFullAdmin())
-              const SliverToBoxAdapter(
-                child: DaAccessRequestAdminCard(),
-              ),
-            if (currentUserJwtStaff())
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                  child: Material(
-                    color: Theme.of(context).colorScheme.surface,
-                    borderRadius: BorderRadius.circular(14),
-                    clipBehavior: Clip.antiAlias,
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: Theme.of(context)
-                            .colorScheme
-                            .primary
-                            .withValues(alpha: 0.12),
-                        child: Icon(
-                          Icons.rate_review_outlined,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                      title: const Text(
-                        'Farmer reports (DA)',
-                        style: TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                      subtitle: const Text(
-                        'Review positive scans and write advice per image',
-                      ),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () {
-                        Navigator.push<void>(
-                          context,
-                          MaterialPageRoute<void>(
-                            builder: (_) => const AdminReportsScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ),
             SliverToBoxAdapter(
               child: KeyedSubtree(
-                key: DashboardGuideKeys.moreGeneralInfoKey,
+                key: guideKeys.moreGeneralInfoKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
@@ -2569,7 +2614,7 @@ class _MoreTab extends StatelessWidget {
             ),
             SliverToBoxAdapter(
               child: KeyedSubtree(
-                key: DashboardGuideKeys.moreCommonDiseasesKey,
+                key: guideKeys.moreCommonDiseasesKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
@@ -2631,7 +2676,7 @@ class _MoreTab extends StatelessWidget {
             ),
             SliverToBoxAdapter(
               child: KeyedSubtree(
-                key: DashboardGuideKeys.moreExploreByPartsKey,
+                key: guideKeys.moreExploreByPartsKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
@@ -2943,58 +2988,30 @@ class _MoreTileCard extends StatelessWidget {
       );
     }
 
-    return Material(
-      color: Colors.transparent,
-      child: Ink(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: <Color>[
-              context.pineCardSurface,
-              Color.lerp(context.pineCardSurface, context.pineMutedFill, 0.65)!,
-            ],
-          ),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: cs.outlineVariant.withValues(alpha: 0.75),
-          ),
-          boxShadow: <BoxShadow>[
-            BoxShadow(
-              color: cs.shadow.withValues(alpha: 0.10),
-              blurRadius: 12,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                badge(),
-                const SizedBox(height: 8),
-                Flexible(
-                  child: Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      height: 1.12,
-                      fontWeight: FontWeight.w700,
-                      color: context.pineTextPrimary,
-                    ),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
+    return PineCard(
+      onTap: onTap,
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+      borderRadius: 12,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          badge(),
+          const SizedBox(height: 8),
+          Flexible(
+            child: Text(
+              title,
+              style: TextStyle(
+                fontSize: 12.5,
+                height: 1.12,
+                fontWeight: FontWeight.w700,
+                color: context.pineTextPrimary,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -3193,12 +3210,8 @@ class _FieldHorizontalCard extends StatelessWidget {
     final String? ownerLine = field['ownerLabel'] as String?;
     return SizedBox(
       width: 160,
-      child: Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        clipBehavior: Clip.antiAlias,
+      child: PineCard(
+        padding: EdgeInsets.zero,
         child: Stack(
           children: <Widget>[
             Positioned.fill(
@@ -3307,13 +3320,8 @@ class _EmptyFieldsMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return PineCard(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-      decoration: BoxDecoration(
-        color: context.pineCardSurface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-      ),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,

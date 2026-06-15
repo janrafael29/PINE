@@ -21,6 +21,7 @@
 | Conclusion & recommendations | [G](#g-conclusion--recommendations-ch-v) |
 | User manual | [H](#h-user-manual-appendix) |
 | Panel letter paragraph | [I](#i-panel-response-paragraph-copy-paste) |
+| De-emphasize app UAT (§3.4.8 / §4.1.6) | [`THESIS_UAT_REFRAME_PASTE.md`](THESIS_UAT_REFRAME_PASTE.md) |
 | Do not change | [J](#j-leave-unchanged) |
 
 ---

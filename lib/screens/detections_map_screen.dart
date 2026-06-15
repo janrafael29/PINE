@@ -149,10 +149,10 @@ class _DetectionsMapScreenState extends State<DetectionsMapScreen>
   List<Polygon> _cachedGridPolys = <Polygon>[];
 
   /// Current map zoom (updated from [MapOptions.onPositionChanged]) for marker sizing.
-  double _mapLiveZoom = 15;
+  double _mapLiveZoom = 12;
 
-  /// Below this zoom: field heatmap only; at/above: individual positive pins.
-  static const double _pinZoomThreshold = 15.0;
+  /// Below this zoom: field heat badges + choropleth; at/above: individual pins.
+  static const double _pinZoomThreshold = 18.0;
 
   /// Supabase field rows (id + name) for field-level heatmap tinting.
   List<Map<String, dynamic>> _fieldsRows = <Map<String, dynamic>>[];
@@ -161,7 +161,7 @@ class _DetectionsMapScreenState extends State<DetectionsMapScreen>
 
   /// Smaller pins when zoomed in; larger minimum so captures stay visible on phones.
   static double _pinPixelSizeForZoom(double zoom) {
-    const double zRef = 15.25;
+    const double zRef = 18.0;
     const double base = 26;
     final double z = zoom.clamp(3.0, 22.0);
     final double s = base * math.pow(2, zRef - z);
@@ -233,7 +233,7 @@ class _DetectionsMapScreenState extends State<DetectionsMapScreen>
     if (widget.focusInitialCenter && widget.initialMapCenter != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        _mapController.move(widget.initialMapCenter!, 17);
+        _mapController.move(widget.initialMapCenter!, 19);
       });
     }
   }
@@ -883,10 +883,16 @@ class _DetectionsMapScreenState extends State<DetectionsMapScreen>
 
                 _scheduleFitForCurrentView(positivePts);
 
+                final bool focusOneField =
+                    _selectedFieldId?.trim().isNotEmpty == true;
                 final bool showPositivePins =
-                    _mapLiveZoom >= _pinZoomThreshold && positivePts.isNotEmpty;
-                final bool showFieldHeatmap =
-                    _mapLiveZoom < _pinZoomThreshold && positiveDocs.isNotEmpty;
+                    positivePts.isNotEmpty &&
+                        (focusOneField ||
+                            _mapLiveZoom >= _pinZoomThreshold);
+                // Multi-field zoomed-out view only — not when drilling into one field.
+                final bool showFieldHeatmap = !focusOneField &&
+                    _mapLiveZoom < _pinZoomThreshold &&
+                    positiveDocs.isNotEmpty;
 
                 if (positivePts.isEmpty && docs.isEmpty) {
                   // Still show the field boundaries even if no detections exist yet.
@@ -1106,7 +1112,7 @@ class _DetectionsMapScreenState extends State<DetectionsMapScreen>
                         center;
                     final double zoom =
                         (_selectedFieldId?.trim().isNotEmpty ?? false)
-                            ? 17
+                            ? 19
                             : 16;
                     final double pinSize = _pinPixelSizeForZoom(_mapLiveZoom);
                     final double markerHit = _markerHitBoxForPinSize(pinSize);
@@ -1834,7 +1840,7 @@ class _FieldHeatLegend extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Pinch in to see individual capture pins.',
+              'Pinch in closer (street level) to see individual capture pins.',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: cs.onSurface.withValues(alpha: 0.62),
                     height: 1.25,

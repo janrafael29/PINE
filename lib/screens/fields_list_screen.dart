@@ -8,6 +8,8 @@ import '../core/network_reachability.dart';
 import '../core/supabase_client.dart';
 import '../core/theme.dart';
 import '../services/database_service.dart';
+import '../widgets/app_scaffold.dart';
+import '../widgets/pine_card.dart';
 import 'main_dashboard_screen.dart';
 import 'field_detail_screen.dart';
 import '../utils/scan_flow.dart';
@@ -74,20 +76,13 @@ class _FieldsListScreenState extends State<FieldsListScreen> {
     return DefaultTabController(
       length: 2,
       initialIndex: 0,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('My Fields'),
-          backgroundColor: AppTheme.primaryGreen,
-          foregroundColor: Colors.white,
-          bottom: const TabBar(
-            indicatorColor: Colors.white,
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white70,
-            tabs: <Tab>[
-              Tab(text: 'Fields'),
-              Tab(text: 'Reminders'),
-            ],
-          ),
+      child: AppScaffold(
+        title: 'My Fields',
+        appBarBottom: const TabBar(
+          tabs: <Tab>[
+            Tab(text: 'Fields'),
+            Tab(text: 'Reminders'),
+          ],
         ),
         body: TabBarView(
           children: <Widget>[
@@ -336,8 +331,19 @@ class _FieldsList extends StatelessWidget {
       itemBuilder: (BuildContext context, int index) {
         final Map<String, dynamic> field = fields[index];
         final String? ou = field['user_id'] as String?;
-        return Card(
+        return PineCard(
           margin: const EdgeInsets.only(bottom: 8),
+          onTap: () {
+            Navigator.push<void>(
+              context,
+              MaterialPageRoute<void>(
+                builder: (_) => FieldDetailScreen(
+                  fieldId: field['fieldId'] as String,
+                  fieldName: field['name'] as String,
+                ),
+              ),
+            );
+          },
           child: Stack(
             children: <Widget>[
               ListTile(
@@ -357,9 +363,8 @@ class _FieldsList extends StatelessWidget {
                       Text(
                         'Owner: ${ownerDisplayLabel(ou, ownerLabels)}',
                         style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.primary,
+                          fontSize: 11,
+                          color: context.pineTextSecondary,
                         ),
                       ),
                     if ((field['address'] as String).isNotEmpty)
@@ -372,17 +377,6 @@ class _FieldsList extends StatelessWidget {
                   ],
                 ),
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  Navigator.push<void>(
-                    context,
-                    MaterialPageRoute<void>(
-                      builder: (_) => FieldDetailScreen(
-                        fieldId: field['fieldId'] as String,
-                        fieldName: field['name'] as String,
-                      ),
-                    ),
-                  );
-                },
               ),
               Positioned(
                 top: 6,

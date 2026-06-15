@@ -27,7 +27,7 @@ DateTime? _maxDateTime(DateTime? a, DateTime? b) {
   return a.isAfter(b) ? a : b;
 }
 
-/// Same merge as My Fields grid: cache/server count, local captures, remote detections.
+/// Same merge as My Fields grid: for farmers, local [captured_photo] rows are the count shown.
 Future<List<Map<String, dynamic>>> mergeFieldDocsWithLocalCaptureCounts({
   required DatabaseService db,
   required String userId,
@@ -43,12 +43,12 @@ Future<List<Map<String, dynamic>>> mergeFieldDocsWithLocalCaptureCounts({
         await db.countCapturedPhotosGroupedByFieldId(userId: userId);
     working = fieldRows.map((Map<String, dynamic> data) {
       final String id = (data['id'] as String?) ?? '';
-      final int server = (data['image_count'] as num?)?.toInt() ?? 0;
       final int local = localByField[id] ?? 0;
       final Map<String, dynamic> copy = Map<String, dynamic>.from(data);
-      copy['image_count'] = server > local ? server : local;
+      copy['image_count'] = local;
       return copy;
     }).toList();
+    return enrichFieldRowsWithPreviewFallback(db: db, fieldRows: working);
   }
 
   if (!await NetworkReachability.isOnline()) {
@@ -127,6 +127,12 @@ Future<FieldImageStats> loadFieldImageStats({
   String? previewPath;
 
   if (countLocal) {
+    if (await NetworkReachability.isOnline()) {
+      try {
+        await CapturedPhotosRemoteSync(databaseService: db)
+            .pullIntoLocalIfSignedIn(limit: 500);
+      } catch (_) {}
+    }
     final ({int count, DateTime? latest}) local =
         await db.getCapturedPhotoStatsForField(
       fieldId: fieldId,
@@ -144,50 +150,33 @@ Future<FieldImageStats> loadFieldImageStats({
     if (latestRows.isNotEmpty) {
       previewPath = _previewFromCaptureRow(latestRows.first);
     }
-  }
-
-  final Map<String, dynamic>? cached =
-      await db.getCachedFieldByIdOnly(fieldId: fieldId);
-  if (cached != null) {
-    final int server = (cached['image_count'] as num?)?.toInt() ?? 0;
-    if (server > imageCount) imageCount = server;
-    final String? cachedPreview = cached['preview_image_path'] as String?;
-    if (cachedPreview != null && cachedPreview.trim().isNotEmpty) {
-      previewPath = cachedPreview.trim();
+  } else {
+    final Map<String, dynamic>? cached =
+        await db.getCachedFieldByIdOnly(fieldId: fieldId);
+    if (cached != null) {
+      imageCount = (cached['image_count'] as num?)?.toInt() ?? 0;
+      final String? cachedPreview = cached['preview_image_path'] as String?;
+      if (cachedPreview != null && cachedPreview.trim().isNotEmpty) {
+        previewPath = cachedPreview.trim();
+      }
+      final String? updatedRaw = cached['updated_at']?.toString();
+      lastUpdated = updatedRaw == null ? null : DateTime.tryParse(updatedRaw);
     }
-    final String? updatedRaw = cached['updated_at']?.toString();
-    lastUpdated = _maxDateTime(
-      lastUpdated,
-      updatedRaw == null ? null : DateTime.tryParse(updatedRaw),
-    );
-  }
 
-  if (await NetworkReachability.isOnline()) {
-    try {
-      if (countLocal) {
-        // Hydrate local gallery so detail matches cloud after reinstall.
-        await CapturedPhotosRemoteSync(databaseService: db)
-            .pullIntoLocalIfSignedIn(limit: 500);
-        final ({int count, DateTime? latest}) afterPull =
-            await db.getCapturedPhotoStatsForField(
-          fieldId: fieldId,
-          userId: viewerUserId,
-        );
-        if (afterPull.count > imageCount) imageCount = afterPull.count;
-        lastUpdated = _maxDateTime(lastUpdated, afterPull.latest);
-      }
-
-      final ({int count, DateTime? latest, String? imageUrl}) remote =
-          await _fetchRemoteFieldImageStats(fieldId);
-      if (remote.count > imageCount) imageCount = remote.count;
-      lastUpdated = _maxDateTime(lastUpdated, remote.latest);
-      final String? remoteUrl = remote.imageUrl?.trim();
-      if ((previewPath == null || previewPath.trim().isEmpty) &&
-          remoteUrl != null &&
-          remoteUrl.isNotEmpty) {
-        previewPath = remoteUrl;
-      }
-    } catch (_) {}
+    if (await NetworkReachability.isOnline()) {
+      try {
+        final ({int count, DateTime? latest, String? imageUrl}) remote =
+            await _fetchRemoteFieldImageStats(fieldId);
+        if (remote.count > imageCount) imageCount = remote.count;
+        lastUpdated = _maxDateTime(lastUpdated, remote.latest);
+        final String? remoteUrl = remote.imageUrl?.trim();
+        if ((previewPath == null || previewPath.trim().isEmpty) &&
+            remoteUrl != null &&
+            remoteUrl.isNotEmpty) {
+          previewPath = remoteUrl;
+        }
+      } catch (_) {}
+    }
   }
 
   if (previewPath == null || previewPath.trim().isEmpty) {

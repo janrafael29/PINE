@@ -1,51 +1,42 @@
 flowchart TD
-    subgraph DEV[Development Environment]
-        PC[Developer machine]
-        IDE[VS Code or Cursor]
-        FLUTTER[Flutter SDK]
-        DARTDEFINE[Supabase dart define values]
-        ADB[ADB]
+    subgraph DEV[Development]
+        PC[Developer machine Flutter SDK]
+        SCR[scripts run_debug deploy_admin_web]
     end
 
-    subgraph TRAIN[Training Environment]
-        YOLO[Ultralytics YOLO training]
-        DATASET[Training dataset]
-        MODEL[TFLite model export]
+    subgraph TRAIN[Model training]
+        YOLO[Ultralytics YOLO export]
+        TFL[assets/model/best.tflite 1280 input]
     end
 
-    subgraph MOBILE[Mobile Device]
-        APP[Flutter app]
-        UI[Screens and widgets]
-        SVC[Service layer]
-        SQLITE[(SQLite pine db)]
-        LOCALIMG[(Local image storage)]
-        INFER[TFLite runtime]
-        HW[Camera GPS Biometric]
+    subgraph MOBILE[Android device]
+        APP[PINYA-PIC Flutter app]
+        SQL[(SQLite offline queue field_cache)]
+        LOCAL[(Local images)]
+        INF[TFLite InferenceService on-device]
+    end
+
+    subgraph WEB[PineSight Admin]
+        NL[Netlify static host]
+        JS[admin/app.js map reports analytics]
     end
 
     subgraph CLOUD[Supabase]
-        SA[Supabase Auth]
-        PG[(Postgres with RLS)]
-        SB[Supabase Storage]
-        B1[detections bucket]
-        B2[avatars bucket]
+        AUTH[Auth email password]
+        PG[(Postgres RLS)]
+        RT[Realtime detections expert_responses]
+        ST[Storage detections avatars]
     end
 
-    IDE --> FLUTTER
-    FLUTTER --> DARTDEFINE
     PC --> APP
-    ADB --> APP
-    YOLO --> DATASET
-    YOLO --> MODEL
-    MODEL --> INFER
-    APP --> UI
-    UI --> SVC
-    SVC --> SQLITE
-    SVC --> LOCALIMG
-    SVC --> INFER
-    SVC --> HW
-    SVC --> SA
-    SVC --> PG
-    SVC --> SB
-    SB --> B1
-    SB --> B2
+    YOLO --> TFL --> INF
+    APP --> SQL
+    APP --> LOCAL
+    APP --> AUTH
+    APP --> PG
+    APP --> ST
+    NL --> JS
+    JS --> AUTH
+    JS --> PG
+    JS --> RT
+    PG --> RT

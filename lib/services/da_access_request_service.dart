@@ -19,6 +19,10 @@ class DaAccessRequestRow {
     this.reviewedAt,
     this.displayName,
     this.email,
+    this.fullName,
+    this.organization,
+    this.companyLocation,
+    this.position,
   });
 
   final String id;
@@ -30,6 +34,10 @@ class DaAccessRequestRow {
   final DateTime? reviewedAt;
   final String? displayName;
   final String? email;
+  final String? fullName;
+  final String? organization;
+  final String? companyLocation;
+  final String? position;
 
   static DaAccessRequestStatus _parseStatus(String? raw) {
     switch ((raw ?? '').trim().toLowerCase()) {
@@ -59,6 +67,10 @@ class DaAccessRequestRow {
           : null,
       displayName: (row['display_name'] as String?)?.trim(),
       email: (row['email'] as String?)?.trim(),
+      fullName: (row['full_name'] as String?)?.trim(),
+      organization: (row['organization'] as String?)?.trim(),
+      companyLocation: (row['company_location'] as String?)?.trim(),
+      position: (row['position'] as String?)?.trim(),
     );
   }
 }
@@ -75,9 +87,10 @@ class DaAccessRequestService {
     if (uid == null) return null;
 
     final Object? raw = await _client
-        .from('da_access_requests')
+        .from('access_request')
         .select(
-          'id, status, note, review_note, created_at, reviewed_at',
+          'id, status, note, review_note, created_at, reviewed_at, '
+          'full_name, organization, company_location, position',
         )
         .eq('user_id', uid)
         .order('created_at', ascending: false)
@@ -89,7 +102,13 @@ class DaAccessRequestService {
   }
 
   /// Submits a new pending request. Caller must not already be staff.
-  Future<void> submitRequest({String? note}) async {
+  Future<void> submitRequest({
+    required String fullName,
+    required String organization,
+    required String companyLocation,
+    required String position,
+    String? note,
+  }) async {
     if (currentUserJwtStaff()) {
       throw StateError('You already have staff access.');
     }
@@ -98,19 +117,36 @@ class DaAccessRequestService {
       throw StateError('Sign in required.');
     }
 
-    final String trimmed = (note ?? '').trim();
+    final String name = fullName.trim();
+    final String org = organization.trim();
+    final String location = companyLocation.trim();
+    final String role = position.trim();
+    if (name.isEmpty ||
+        org.isEmpty ||
+        location.isEmpty ||
+        role.isEmpty) {
+      throw StateError(
+        'Full name, organization, office location, and position are required.',
+      );
+    }
+
+    final String trimmedNote = (note ?? '').trim();
     final Map<String, dynamic> row = <String, dynamic>{
       'user_id': uid,
       'status': 'pending',
-      if (trimmed.isNotEmpty) 'note': trimmed,
+      'full_name': name,
+      'organization': org,
+      'company_location': location,
+      'position': role,
+      if (trimmedNote.isNotEmpty) 'note': trimmedNote,
     };
 
     try {
-      await _client.from('da_access_requests').insert(row);
+      await _client.from('access_request').insert(row);
     } on PostgrestException catch (e) {
       final String msg = e.message.toLowerCase();
       if (msg.contains('duplicate') || msg.contains('unique')) {
-        throw StateError('You already have a pending DA access request.');
+        throw StateError('You already have a pending agriculturist access request.');
       }
       throw StateError(e.message);
     }
@@ -123,8 +159,11 @@ class DaAccessRequestService {
     }
 
     final Object raw = await _client
-        .from('da_access_requests')
-        .select('id, user_id, status, note, created_at')
+        .from('access_request')
+        .select(
+          'id, user_id, status, note, created_at, '
+          'full_name, organization, company_location, position',
+        )
         .eq('status', 'pending')
         .order('created_at', ascending: false);
 

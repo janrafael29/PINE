@@ -43,6 +43,13 @@
     -Target apk -SplitPerAbi -Minor -Clean
 
 .EXAMPLE
+  # Demo / panel APK — release build with Settings account switcher enabled
+  .\scripts\build_release_auto_version.ps1 `
+    -SupabaseUrl 'https://xxx.supabase.co' `
+    -SupabaseAnonKey 'eyJ...' `
+    -Target apk -SplitPerAbi -Demo -Clean
+
+.EXAMPLE
   .\scripts\build_release_auto_version.ps1 `
     -SupabaseUrl 'https://xxx.supabase.co' `
     -SupabaseAnonKey 'eyJ...' `
@@ -62,6 +69,7 @@ param(
     [switch]$Micro,
     [switch]$Minor,
     [switch]$Major,
+    [switch]$Demo,
     [switch]$Clean
 )
 
@@ -123,6 +131,9 @@ try {
         SUPABASE_URL      = $url
         SUPABASE_ANON_KEY = $key
     }
+    if ($Demo) {
+        $payload.ENABLE_DEMO_ACCOUNT_SWITCHER = "true"
+    }
     $utf8NoBom = New-Object System.Text.UTF8Encoding $false
     $definesJson = $payload | ConvertTo-Json -Compress
     [System.IO.File]::WriteAllText($definesPath, $definesJson, $utf8NoBom)
@@ -158,6 +169,12 @@ try {
 
     Write-Host ""
     Write-Host "Build complete."
+    if ($Demo) {
+        Write-Host "Demo build: Settings -> Developer -> switch account is ENABLED." -ForegroundColor Yellow
+    }
+    else {
+        Write-Host "Production build: account switcher is OFF (omit -Demo to keep it off)." -ForegroundColor Green
+    }
     Write-Host "pubspec: $verLine"
     Write-Host "Users see version: $visibleVer (in Settings / About)."
     if ($Target -eq "apk") {

@@ -13,7 +13,6 @@ import '../core/map_tiles.dart';
 import '../core/theme.dart';
 import '../services/admin_reports_service.dart';
 import '../services/database_service.dart';
-import '../services/export_service.dart';
 import '../services/image_storage_service.dart';
 import '../utils/severity_score.dart';
 import '../utils/friendly_datetime.dart';
@@ -21,8 +20,13 @@ import '../widgets/detection_overlay_image.dart';
 import '../widgets/esri_imagery_tile_layer.dart';
 import '../widgets/severity_glow_marker.dart';
 import '../widgets/action_popup.dart';
+import '../core/staff_role_labels.dart';
+import '../widgets/app_scaffold.dart';
+import '../widgets/pine_card.dart';
 import '../core/admin_session.dart';
+import '../core/expert_reply_notification_prefs.dart';
 import '../core/supabase_client.dart';
+import '../services/captured_photos_remote_sync.dart';
 import '../services/expert_feedback_service.dart';
 import '../utils/detection_report_status.dart';
 
@@ -51,12 +55,10 @@ class _CaptureDetailData {
 class _CapturedPhotoDetailScreenState extends State<CapturedPhotoDetailScreen> {
   late final DatabaseService _db;
   late final ImageStorageService _images;
-  late final ExportService _export;
   late final ExpertFeedbackService _expertFeedback;
   late final AdminReportsService _adminReports;
   final TextEditingController _replyController = TextEditingController();
   String _replyAction = '';
-  bool _busy = false;
   bool _replySaving = false;
   late Future<_CaptureDetailData> _detailFuture;
 
@@ -65,7 +67,6 @@ class _CapturedPhotoDetailScreenState extends State<CapturedPhotoDetailScreen> {
     super.initState();
     _db = DatabaseService();
     _images = ImageStorageService();
-    _export = ExportService(databaseService: _db, imageStorageService: _images);
     _expertFeedback = ExpertFeedbackService();
     _adminReports = AdminReportsService();
     _detailFuture = _loadDetail();
@@ -88,8 +89,15 @@ class _CapturedPhotoDetailScreenState extends State<CapturedPhotoDetailScreen> {
     Map<String, dynamic>? row;
     if (widget.capturedPhotoId != null) {
       row = await _db.getCapturedPhotoById(widget.capturedPhotoId!);
-    } else {
-      row = await _loadRemoteRow(widget.remoteDetectionId!.trim());
+    } else if (widget.remoteDetectionId != null) {
+      final String rid = widget.remoteDetectionId!.trim();
+      row = await _db.getCapturedPhotoByRemoteId(rid);
+      if (row == null) {
+        await CapturedPhotosRemoteSync(databaseService: _db)
+            .ensureLocalCaptureForDetection(rid);
+        row = await _db.getCapturedPhotoByRemoteId(rid);
+      }
+      row ??= await _loadRemoteRow(rid);
     }
     Map<String, dynamic>? expert;
     final String? remoteId = row?['remote_id'] as String? ??
@@ -100,13 +108,24 @@ class _CapturedPhotoDetailScreenState extends State<CapturedPhotoDetailScreen> {
     if (expert != null && mounted) {
       _replyController.text = (expert['strategy_text'] as String?) ?? '';
       _replyAction = (expert['action_type'] as String?) ?? '';
+      if (!currentUserJwtStaff()) {
+        final String text = (expert['strategy_text'] as String?)?.trim() ?? '';
+        if (text.isNotEmpty && remoteId != null) {
+          await markExpertReplySeen(
+            detectionId: remoteId,
+            updatedAt: (expert['updated_at'] as String?)?.trim(),
+          );
+        }
+      }
     }
     return _CaptureDetailData(row: row, expertResponse: expert);
   }
 
   Future<Map<String, dynamic>?> _loadRemoteRow(String detectionId) async {
-    final Map<String, dynamic>? det =
-        await _adminReports.fetchDetectionDetail(detectionId);
+    final Map<String, dynamic>? det = currentUserJwtStaff()
+        ? await _adminReports.fetchDetectionDetail(detectionId)
+        : await CapturedPhotosRemoteSync(databaseService: _db)
+            .fetchDetectionForCurrentUser(detectionId);
     if (det == null) return null;
 
     String fieldName = 'Field';
@@ -173,13 +192,12 @@ class _CapturedPhotoDetailScreenState extends State<CapturedPhotoDetailScreen> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Captured Picture'),
-        backgroundColor: AppTheme.primaryGreen,
-        foregroundColor: Colors.white,
-      ),
-      body: FutureBuilder<_CaptureDetailData>(
+    return GestureDetector(
+      onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+      behavior: HitTestBehavior.translucent,
+      child: AppScaffold(
+        title: 'Captured Picture',
+        body: FutureBuilder<_CaptureDetailData>(
         future: _detailFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
@@ -217,6 +235,7 @@ class _CapturedPhotoDetailScreenState extends State<CapturedPhotoDetailScreen> {
           );
 
           return ListView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.all(16),
             children: [
               FutureBuilder<Uint8List?>(
@@ -232,8 +251,27 @@ class _CapturedPhotoDetailScreenState extends State<CapturedPhotoDetailScreen> {
                         ? Container(
                             height: 220,
                             color: colorScheme.surface,
-                            child: const Center(
-                              child: Icon(Icons.image_not_supported),
+                            child: Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  Icon(
+                                    Icons.image_not_supported,
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    remoteUrl == null || remoteUrl.isEmpty
+                                        ? 'No image saved for this report.'
+                                        : 'Could not load image. Check your connection and try again.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: colorScheme.onSurfaceVariant,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           )
                         : InkWell(
@@ -261,115 +299,101 @@ class _CapturedPhotoDetailScreenState extends State<CapturedPhotoDetailScreen> {
                 },
               ),
               const SizedBox(height: 16),
-              Card(
-                elevation: 0,
-                color: colorScheme.surface,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        fieldLabel,
-                        style: (textTheme.titleMedium ?? const TextStyle())
-                            .copyWith(fontWeight: FontWeight.w800),
-                      ),
-                      const SizedBox(height: 10),
+              PineCard(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      fieldLabel,
+                      style: (textTheme.titleMedium ?? const TextStyle())
+                          .copyWith(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 10),
+                    _row(
+                      'Report status',
+                      capturedPhotoStatusLabel(row),
+                    ),
+                    _row('Mealybug Count', '$count'),
+                    _row('Confidence', '$confidence%'),
+                    if (detections.isNotEmpty)
                       _row(
-                        'Report status',
-                        capturedPhotoStatusLabel(row),
-                      ),
-                      _row('Mealybug Count', '$count'),
-                      _row('Confidence', '$confidence%'),
-                      if (detections.isNotEmpty)
-                        _row(
-                            'Detection Labels', '${detections.length} markers'),
-                      if (createdAt.isNotEmpty) _row('Captured at', createdAt),
-                      if (lat != null && lng != null)
-                        _row('GPS',
-                            '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}'),
-                    ],
-                  ),
+                          'Detection Labels', '${detections.length} markers'),
+                    if (createdAt.isNotEmpty) _row('Captured at', createdAt),
+                    if (lat != null && lng != null)
+                      _row('GPS',
+                          '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}'),
+                  ],
                 ),
               ),
               if (lat != null && lng != null) ...[
                 const SizedBox(height: 14),
-                Card(
-                  elevation: 0,
-                  color: colorScheme.surface,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.my_location,
-                              color: severityColor(sev),
-                              size: 18,
+                PineCard(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.my_location,
+                            color: severityColor(sev),
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Location',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14,
                             ),
-                            const SizedBox(width: 8),
-                            const Text(
-                              'Location',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w800,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(14),
-                          child: SizedBox(
-                            height: 180,
-                            child: RepaintBoundary(
-                              child: FlutterMap(
-                                options: MapOptions(
-                                  initialCenter: LatLng(lat, lng),
-                                  initialZoom: 18,
-                                  maxZoom: MapTiles.maxZoomSatellite.toDouble(),
-                                  minZoom: 3,
-                                  interactionOptions: const InteractionOptions(
-                                    flags: InteractiveFlag.none,
-                                  ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: SizedBox(
+                          height: 180,
+                          child: RepaintBoundary(
+                            child: FlutterMap(
+                              options: MapOptions(
+                                initialCenter: LatLng(lat, lng),
+                                initialZoom: 18,
+                                maxZoom: MapTiles.maxZoomSatellite.toDouble(),
+                                minZoom: 3,
+                                interactionOptions: const InteractionOptions(
+                                  flags: InteractiveFlag.none,
                                 ),
-                                children: [
-                                  EsriImageryTileLayer(
-                                    maxZoom:
-                                        MapTiles.maxZoomSatellite.toDouble(),
-                                    maxNativeZoom:
-                                        MapTiles.maxNativeZoomSatellite,
-                                  ),
-                                  MarkerLayer(
-                                    markers: <Marker>[
-                                      Marker(
-                                        point: LatLng(lat, lng),
-                                        width: 120,
-                                        height: 120,
-                                        alignment: Alignment.center,
-                                        child: SeverityGlowMarker(
-                                          severity01: sev,
-                                          baseSize: 22,
-                                          pulse: false,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
                               ),
+                              children: [
+                                EsriImageryTileLayer(
+                                  maxZoom:
+                                      MapTiles.maxZoomSatellite.toDouble(),
+                                  maxNativeZoom:
+                                      MapTiles.maxNativeZoomSatellite,
+                                ),
+                                MarkerLayer(
+                                  markers: <Marker>[
+                                    Marker(
+                                      point: LatLng(lat, lng),
+                                      width: 120,
+                                      height: 120,
+                                      alignment: Alignment.center,
+                                      child: SeverityGlowMarker(
+                                        severity01: sev,
+                                        baseSize: 22,
+                                        pulse: false,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -377,80 +401,66 @@ class _CapturedPhotoDetailScreenState extends State<CapturedPhotoDetailScreen> {
                   (expert['strategy_text'] as String?)?.trim().isNotEmpty ==
                       true) ...<Widget>[
                 const SizedBox(height: 14),
-                Card(
-                  elevation: 0,
-                  color: AppTheme.primaryGreen.withValues(alpha: 0.08),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    side: BorderSide(
-                      color: AppTheme.primaryGreen.withValues(alpha: 0.35),
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        const Text(
-                          'Expert advice from DA/OMAG',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 15,
-                          ),
+                PineCard(
+                  padding: const EdgeInsets.all(16),
+                  backgroundColor: AppTheme.primaryGreen.withValues(alpha: 0.08),
+                  borderColor: AppTheme.primaryGreen.withValues(alpha: 0.35),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      const Text(
+                        expertAdviceTitle,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          (expert['strategy_text'] as String?) ?? '',
-                          style: const TextStyle(height: 1.35),
-                        ),
-                        if ((expert['action_type'] as String?)
-                                ?.trim()
-                                .isNotEmpty ==
-                            true)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Text(
-                              'Action: ${expert['action_type']}',
-                              style: TextStyle(
-                                color: colorScheme.onSurfaceVariant,
-                                fontWeight: FontWeight.w600,
-                              ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        (expert['strategy_text'] as String?) ?? '',
+                        style: const TextStyle(height: 1.35),
+                      ),
+                      if ((expert['action_type'] as String?)
+                              ?.trim()
+                              .isNotEmpty ==
+                          true)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            'Action: ${expert['action_type']}',
+                            style: TextStyle(
+                              color: colorScheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
-                      ],
-                    ),
+                        ),
+                    ],
                   ),
                 ),
               ],
               if (isStaff && isPositive) ...<Widget>[
                 const SizedBox(height: 14),
-                Card(
-                  elevation: 0,
-                  color: colorScheme.surface,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        const Text(
-                          'DA/OMAG reply (admin)',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 15,
-                          ),
+                PineCard(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      const Text(
+                        staffReplyTitle,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
                         ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: _replyController,
-                          maxLines: 4,
-                          decoration: const InputDecoration(
-                            hintText: 'Treatment advice or next steps…',
-                            border: OutlineInputBorder(),
-                          ),
+                      ),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: _replyController,
+                        maxLines: 4,
+                        decoration: const InputDecoration(
+                          hintText: 'Treatment advice or next steps…',
+                          border: OutlineInputBorder(),
                         ),
+                      ),
                         const SizedBox(height: 8),
                         DropdownButtonFormField<String>(
                           key: ValueKey<String>(
@@ -529,68 +539,19 @@ class _CapturedPhotoDetailScreenState extends State<CapturedPhotoDetailScreen> {
                               foregroundColor: Colors.white,
                             ),
                             child: Text(
-                              _replySaving ? 'Saving…' : 'Save DA advice',
+                              _replySaving ? 'Saving…' : 'Save agriculturist advice',
                             ),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ),
-              ],
-              if (widget.capturedPhotoId != null) ...<Widget>[
-                const SizedBox(height: 14),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _busy
-                        ? null
-                        : () async {
-                            setState(() => _busy = true);
-                            final ActionPopupController popup =
-                                ActionPopupController();
-                            try {
-                              popup.showBlockingProgress(
-                                context,
-                                message: 'Exporting…',
-                              );
-                              await _export.exportSingleCapturedPhotoZip(
-                                widget.capturedPhotoId!,
-                              );
-                              popup.close();
-                              if (!context.mounted) return;
-                              await ActionPopup.showSuccess(
-                                context,
-                                message: 'Export complete.',
-                              );
-                            } catch (e) {
-                              popup.close();
-                              if (!context.mounted) return;
-                              await ActionPopup.showError(
-                                context,
-                                message: 'Export failed: $e',
-                              );
-                            } finally {
-                              if (mounted) setState(() => _busy = false);
-                            }
-                          },
-                    icon: const Icon(Icons.ios_share),
-                    label: const Text('Export this capture (ZIP)'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryGreen,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
                 ),
               ],
             ],
           );
         },
       ),
+    ),
     );
   }
 
@@ -632,12 +593,9 @@ class _SavedDetectionImageViewer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Saved Detection Preview'),
-        backgroundColor: AppTheme.primaryGreen,
-        foregroundColor: Colors.white,
-      ),
+    return AppScaffold(
+      title: 'Saved Detection Preview',
+      usePatternBackground: false,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(12),

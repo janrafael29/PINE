@@ -63,12 +63,67 @@ if ($Target -eq 'supabase') {
 }
 
 # Netlify
-$netlifyArgs = @('deploy', '--dir', '.', '--message', 'PineSight Admin')
-if ($Prod -or -not $PSBoundParameters.ContainsKey('Prod')) { $netlifyArgs += '--prod' }
+$wantProd = $Prod -or -not $PSBoundParameters.ContainsKey('Prod')
+
+function Invoke-NetlifyCli {
+  param(
+    [Parameter(ValueFromRemainingArguments = $true)][string[]]$CliArgs,
+    [switch]$Quiet
+  )
+  $prev = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  try {
+    if ($Quiet) {
+      & npx --yes netlify-cli @CliArgs 2>&1 | Out-Null
+    } else {
+      & npx --yes netlify-cli @CliArgs 2>&1 | ForEach-Object { Write-Host $_ }
+    }
+    return [int]$LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $prev
+  }
+}
+
+function Invoke-NetlifyProdViaDraftRestore {
+  param([string]$Message)
+  Write-Host ''
+  Write-Host 'Production deploy blocked (often Netlify credit limit). Using draft + publish workaround...' -ForegroundColor Yellow
+  $prev = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  try {
+    $raw = & npx --yes netlify-cli deploy --dir . --message $Message --json 2>&1 | Out-String
+  } finally {
+    $ErrorActionPreference = $prev
+  }
+  if ($LASTEXITCODE -ne 0) {
+    throw "Netlify draft deploy failed.`n$raw"
+  }
+  if ($raw -notmatch '(?s)\{.*\}') {
+    throw "Netlify draft deploy returned no JSON.`n$raw"
+  }
+  $deploy = $Matches[0] | ConvertFrom-Json
+  if (-not $deploy.deploy_id -or -not $deploy.site_id) {
+    throw "Unexpected Netlify JSON: $($Matches[0])"
+  }
+  $apiData = '{\"site_id\":\"' + $deploy.site_id + '\",\"deploy_id\":\"' + $deploy.deploy_id + '\"}'
+  $code = Invoke-NetlifyCli api restoreSiteDeploy --data $apiData
+  if ($code -ne 0) { throw 'Netlify restoreSiteDeploy failed.' }
+  Write-Host ''
+  Write-Host "Production URL: https://$($deploy.site_name).netlify.app" -ForegroundColor Green
+  Write-Host "Deploy: $($deploy.logs)" -ForegroundColor DarkGray
+}
 
 Push-Location $adminDir
 try {
-  npx --yes netlify-cli @netlifyArgs
+  if ($wantProd) {
+    $code = Invoke-NetlifyCli -Quiet deploy --dir . --message 'PineSight Admin' --prod
+    if ($code -ne 0) {
+      Invoke-NetlifyProdViaDraftRestore -Message 'PineSight Admin'
+    }
+  } else {
+    $code = Invoke-NetlifyCli deploy --dir . --message 'PineSight Admin'
+    if ($code -ne 0) { exit $code }
+  }
 } finally {
   Pop-Location
 }

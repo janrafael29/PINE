@@ -1,73 +1,88 @@
-// GlobalKeys so the navigation spotlight can measure real UI regions.
+// Keys for the navigation spotlight to measure real UI regions.
+//
+// Each [MainDashboardScreen] owns a [DashboardGuideKeyHolder] so rebuilds never
+// attach the same GlobalKey to two widgets in the tree at once.
 library;
 
 import 'package:flutter/material.dart';
 
 import 'navigation_guide_content.dart';
 
-class DashboardGuideKeys {
-  DashboardGuideKeys._();
-
-  static final GlobalKey homeNavKey = GlobalKey(debugLabel: 'guideHomeNav');
-  static final GlobalKey homeBrandingKey =
-      GlobalKey(debugLabel: 'guideHomeBranding');
-  static final GlobalKey homeGreetingKey =
-      GlobalKey(debugLabel: 'guideHomeGreeting');
-  static final GlobalKey homeTotalFieldsKey =
-      GlobalKey(debugLabel: 'guideHomeTotalFields');
-  static final GlobalKey homeRegionKey =
-      GlobalKey(debugLabel: 'guideHomeRegion');
-  static final GlobalKey homeSavedImagesKey =
-      GlobalKey(debugLabel: 'guideHomeSavedImages');
-  static final GlobalKey homeMyFieldsSectionKey =
-      GlobalKey(debugLabel: 'guideHomeMyFieldsSection');
-  static final GlobalKey homeMapPreviewKey =
-      GlobalKey(debugLabel: 'guideHomeMapPreview');
-
-  static final GlobalKey diagnoseNavKey =
-      GlobalKey(debugLabel: 'guideDiagnoseNav');
-  static final GlobalKey diagnoseSearchDiseasesKey =
-      GlobalKey(debugLabel: 'guideDiagnoseSearch');
-  static final GlobalKey diagnoseWeekStatsKey =
-      GlobalKey(debugLabel: 'guideDiagnoseWeekStats');
-  static final GlobalKey diagnosePestsChartKey =
-      GlobalKey(debugLabel: 'guideDiagnosePestsChart');
-  static final GlobalKey diagnoseMyFieldsStripKey =
-      GlobalKey(debugLabel: 'guideDiagnoseMyFieldsStrip');
-
-  static final GlobalKey scanButtonKey =
-      GlobalKey(debugLabel: 'guideScanButton');
-  /// Add Photo → sync queued uploads + offline-created fields.
-  static final GlobalKey addPhotoSyncKey =
-      GlobalKey(debugLabel: 'guideAddPhotoSync');
-  static final GlobalKey myFieldsNavKey =
-      GlobalKey(debugLabel: 'guideMyFieldsNav');
-  static final GlobalKey myFieldsHeaderTabsKey =
-      GlobalKey(debugLabel: 'guideMyFieldsHeaderTabs');
-  static final GlobalKey myFieldsGridKey =
-      GlobalKey(debugLabel: 'guideMyFieldsGrid');
-
-  static final GlobalKey moreNavKey = GlobalKey(debugLabel: 'guideMoreNav');
-  static final GlobalKey moreProfileKey =
-      GlobalKey(debugLabel: 'guideMoreProfile');
-  static final GlobalKey moreGeneralInfoKey =
-      GlobalKey(debugLabel: 'guideMoreGeneralInfo');
-  static final GlobalKey moreCommonDiseasesKey =
-      GlobalKey(debugLabel: 'guideMoreCommonDiseases');
-  static final GlobalKey moreExploreByPartsKey =
-      GlobalKey(debugLabel: 'guideMoreExploreByParts');
-
-  static final GlobalKey bottomNavBarKey =
-      GlobalKey(debugLabel: 'guideBottomNavBar');
-
-  static List<GlobalKey> keysForTargets(
-    List<NavigationGuideSpotlightTarget> targets,
-  ) {
-    return targets.map(_keyFor).toList(growable: false);
+class DashboardGuideKeyHolder {
+  DashboardGuideKeyHolder() {
+    homeNavKey = GlobalKey(debugLabel: 'guideHomeNav');
+    homeBrandingKey = GlobalKey(debugLabel: 'guideHomeBranding');
+    homeGreetingKey = GlobalKey(debugLabel: 'guideHomeGreeting');
+    homeTotalFieldsKey = GlobalKey(debugLabel: 'guideHomeTotalFields');
+    homeRegionKey = GlobalKey(debugLabel: 'guideHomeRegion');
+    homeSavedImagesKey = GlobalKey(debugLabel: 'guideHomeSavedImages');
+    homeMyFieldsSectionKey = GlobalKey(debugLabel: 'guideHomeMyFieldsSection');
+    homeMapPreviewKey = GlobalKey(debugLabel: 'guideHomeMapPreview');
+    diagnoseNavKey = GlobalKey(debugLabel: 'guideDiagnoseNav');
+    diagnoseSearchDiseasesKey = GlobalKey(debugLabel: 'guideDiagnoseSearch');
+    diagnoseWeekStatsKey = GlobalKey(debugLabel: 'guideDiagnoseWeekStats');
+    diagnosePestsChartKey = GlobalKey(debugLabel: 'guideDiagnosePestsChart');
+    diagnoseMyFieldsStripKey = GlobalKey(debugLabel: 'guideDiagnoseMyFieldsStrip');
+    scanButtonKey = GlobalKey(debugLabel: 'guideScanButton');
+    myFieldsNavKey = GlobalKey(debugLabel: 'guideMyFieldsNav');
+    myFieldsHeaderTabsKey = GlobalKey(debugLabel: 'guideMyFieldsHeaderTabs');
+    myFieldsGridKey = GlobalKey(debugLabel: 'guideMyFieldsGrid');
+    moreNavKey = GlobalKey(debugLabel: 'guideMoreNav');
+    moreProfileKey = GlobalKey(debugLabel: 'guideMoreProfile');
+    moreGeneralInfoKey = GlobalKey(debugLabel: 'guideMoreGeneralInfo');
+    moreCommonDiseasesKey = GlobalKey(debugLabel: 'guideMoreCommonDiseases');
+    moreExploreByPartsKey = GlobalKey(debugLabel: 'guideMoreExploreByParts');
+    bottomNavBarKey = GlobalKey(debugLabel: 'guideBottomNavBar');
   }
 
-  static GlobalKey _keyFor(NavigationGuideSpotlightTarget t) {
-    return switch (t) {
+  /// Only one dashboard should be mounted; the tour reads this holder.
+  static DashboardGuideKeyHolder? _attached;
+  static DashboardGuideKeyHolder? get attached => _attached;
+
+  static void attach(DashboardGuideKeyHolder holder) {
+    _attached = holder;
+  }
+
+  static void detach(DashboardGuideKeyHolder holder) {
+    if (_attached == holder) _attached = null;
+  }
+
+  /// Add Photo → sync (lives on [PhotoSourcePicker] when the tour opens it).
+  static final GlobalKey addPhotoSyncKey =
+      GlobalKey(debugLabel: 'guideAddPhotoSync');
+
+  late final GlobalKey homeNavKey;
+  late final GlobalKey homeBrandingKey;
+  late final GlobalKey homeGreetingKey;
+  late final GlobalKey homeTotalFieldsKey;
+  late final GlobalKey homeRegionKey;
+  late final GlobalKey homeSavedImagesKey;
+  late final GlobalKey homeMyFieldsSectionKey;
+  late final GlobalKey homeMapPreviewKey;
+  late final GlobalKey diagnoseNavKey;
+  late final GlobalKey diagnoseSearchDiseasesKey;
+  late final GlobalKey diagnoseWeekStatsKey;
+  late final GlobalKey diagnosePestsChartKey;
+  late final GlobalKey diagnoseMyFieldsStripKey;
+  late final GlobalKey scanButtonKey;
+  late final GlobalKey myFieldsNavKey;
+  late final GlobalKey myFieldsHeaderTabsKey;
+  late final GlobalKey myFieldsGridKey;
+  late final GlobalKey moreNavKey;
+  late final GlobalKey moreProfileKey;
+  late final GlobalKey moreGeneralInfoKey;
+  late final GlobalKey moreCommonDiseasesKey;
+  late final GlobalKey moreExploreByPartsKey;
+  late final GlobalKey bottomNavBarKey;
+
+  List<GlobalKey> keysForTargets(
+    List<NavigationGuideSpotlightTarget>targets,
+  ) {
+    return targets.map(keyFor).toList(growable: false);
+  }
+
+  GlobalKey keyFor(NavigationGuideSpotlightTarget target) {
+    return switch (target) {
       NavigationGuideSpotlightTarget.homeNav => homeNavKey,
       NavigationGuideSpotlightTarget.homeBranding => homeBrandingKey,
       NavigationGuideSpotlightTarget.homeGreeting => homeGreetingKey,
@@ -81,8 +96,7 @@ class DashboardGuideKeys {
       NavigationGuideSpotlightTarget.diagnoseSearchDiseases =>
         diagnoseSearchDiseasesKey,
       NavigationGuideSpotlightTarget.diagnoseWeekStats => diagnoseWeekStatsKey,
-      NavigationGuideSpotlightTarget.diagnosePestsChart =>
-        diagnosePestsChartKey,
+      NavigationGuideSpotlightTarget.diagnosePestsChart => diagnosePestsChartKey,
       NavigationGuideSpotlightTarget.diagnoseMyFieldsStrip =>
         diagnoseMyFieldsStripKey,
       NavigationGuideSpotlightTarget.scanButton => scanButtonKey,

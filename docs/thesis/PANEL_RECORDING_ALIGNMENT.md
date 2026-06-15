@@ -89,6 +89,7 @@ Full script: [`VIDEO_DEMO_GUIDE_2026-06-12.md`](VIDEO_DEMO_GUIDE_2026-06-12.md)
 | P0 | Panel response letter finalize | `PANEL_REVISION_RESPONSE_DRAFT.md` |
 | P1 | Architecture diagram (middleware) | `SYSTEM_ARCHITECTURE.md` |
 | P1 | APA 7 figure/table captions | `THESIS_FIGURES_TABLES_ERRATA.md` |
+| P1 | De-emphasize UAT; primary = benchmark (§3.4.8, §4.1.6) | `THESIS_UAT_REFRAME_PASTE.md` |
 
 ---
 

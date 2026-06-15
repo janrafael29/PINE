@@ -1,0 +1,15 @@
+flowchart TD
+    A[DA Admin center nav or AdminReportsScreen] --> B[CapturedPhotosRemoteSync.pullIntoLocalIfSignedIn]
+    B --> C[AdminReportsService.fetchReports filter pendingReply optional]
+    C --> D[groupAdminReportsByField]
+    D --> E[Show field summary cards]
+    E --> F{Expand field?}
+    F -->|Web admin.js| G[Lazy load field detections limit 200]
+    F -->|Mobile| H[Nested tiles from AdminReportItem list]
+    G --> I[CapturedPhotoDetailScreen]
+    H --> I
+    I --> J{Positive count gt 0 and no expert reply?}
+    J -->|Yes| K[ExpertFeedbackService.upsertResponse]
+    J -->|No| L[View only]
+    K --> M[Farmer sees advice on capture detail + notification badge]
+    K --> N[Web Realtime patch debounced 400ms]

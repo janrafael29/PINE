@@ -18,6 +18,7 @@ import '../widgets/action_popup.dart';
 import 'package:provider/provider.dart';
 import '../core/app_state.dart';
 import '../core/captured_photos_select_labels.dart';
+import '../widgets/show_pine_bottom_sheet.dart';
 import '../core/theme.dart';
 
 String _capturedSelectUnassignedTitle(bool fil) {
@@ -196,32 +197,31 @@ class _CapturedPhotosScreenState extends State<CapturedPhotosScreen> {
   }
 
   Future<void> _openSelectHowSheet(BuildContext context, bool fil) async {
-    final String? choice = await showModalBottomSheet<String>(
+    final String? choice = await showPineBottomSheet<String>(
       context: context,
-      showDragHandle: true,
+      title: fil ? 'Piliin ang paraan' : 'Select how',
       builder: (BuildContext sheetContext) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              ListTile(
-                leading: const Icon(Icons.select_all),
-                title: Text(fil ? 'Lahat ng larawan' : 'All pictures'),
-                subtitle: Text(
-                  fil
-                      ? 'Piliin ang lahat sa listahang ito'
-                      : 'Select every item in this list',
-                ),
-                onTap: () => Navigator.pop(sheetContext, 'all'),
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            ListTile(
+              leading: const Icon(Icons.select_all),
+              title: Text(fil ? 'Lahat ng larawan' : 'All pictures'),
+              subtitle: Text(
+                fil
+                    ? 'Piliin ang lahat sa listahang ito'
+                    : 'Select every item in this list',
               ),
-              ListTile(
-                leading: const Icon(Icons.label_outline),
-                title: Text(_capturedSelectUnassignedTitle(fil)),
-                subtitle: Text(_capturedSelectUnassignedSubtitle(fil)),
-                onTap: () => Navigator.pop(sheetContext, 'field'),
-              ),
-            ],
-          ),
+              onTap: () => Navigator.pop(sheetContext, 'all'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.label_outline),
+              title: Text(_capturedSelectUnassignedTitle(fil)),
+              subtitle: Text(_capturedSelectUnassignedSubtitle(fil)),
+              onTap: () => Navigator.pop(sheetContext, 'field'),
+            ),
+            const SizedBox(height: 8),
+          ],
         );
       },
     );
@@ -325,6 +325,73 @@ class _CapturedPhotosScreenState extends State<CapturedPhotosScreen> {
     );
   }
 
+  Future<void> _exportNew(bool fil) async {
+    final ActionPopupController popup = ActionPopupController();
+    popup.showBlockingProgress(
+      context,
+      message: fil ? 'Inihahanda ang export…' : 'Preparing export…',
+    );
+    try {
+      final String savedPath = await _export.exportCapturedPhotosZipNewOnly();
+      popup.close();
+      if (!mounted) return;
+      await ActionPopup.showSuccess(
+        context,
+        title: fil ? 'Export' : 'Export',
+        message: ExportService.downloadSuccessMessage(
+          savedPath,
+          filipino: fil,
+        ),
+      );
+    } catch (e) {
+      popup.close();
+      if (!mounted) return;
+      if (e is StateError &&
+          e.message.contains('No new captured pictures')) {
+        await ActionPopup.showInfo(
+          context,
+          title: fil ? 'Walang bago' : 'Nothing new',
+          message: fil
+              ? 'Walang bagong larawan na i-e-export.'
+              : 'No new captured pictures to export.',
+        );
+      } else {
+        await ActionPopup.showError(
+          context,
+          message: '$e',
+        );
+      }
+    }
+  }
+
+  Future<void> _exportAll(bool fil) async {
+    final ActionPopupController popup = ActionPopupController();
+    popup.showBlockingProgress(
+      context,
+      message: fil ? 'Inihahanda ang export…' : 'Preparing export…',
+    );
+    try {
+      final String savedPath = await _export.exportCapturedPhotosZipAll();
+      popup.close();
+      if (!mounted) return;
+      await ActionPopup.showSuccess(
+        context,
+        title: fil ? 'Export' : 'Export',
+        message: ExportService.downloadSuccessMessage(
+          savedPath,
+          filipino: fil,
+        ),
+      );
+    } catch (e) {
+      popup.close();
+      if (!mounted) return;
+      await ActionPopup.showError(
+        context,
+        message: 'Export failed: $e',
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool fil = context.watch<AppState>().isFilipino;
@@ -356,63 +423,37 @@ class _CapturedPhotosScreenState extends State<CapturedPhotosScreen> {
                 icon: const Icon(Icons.checklist),
                 onPressed: () => setState(() => _selectionMode = true),
               ),
-              TextButton.icon(
-                onPressed: () async {
-                  try {
-                    await _export.exportCapturedPhotosZipNewOnly();
-                    if (!context.mounted) return;
-                    await ActionPopup.showSuccess(
-                      context,
-                      title: fil ? 'Export' : 'Export',
-                      message: fil
-                          ? 'Handa nang i-share ang ZIP (mga bagong capture).'
-                          : 'ZIP export is ready to share (new captures).',
-                    );
-                  } catch (e) {
-                    if (!context.mounted) return;
-                    if (e is StateError &&
-                        e.message.contains('No new captured pictures')) {
-                      await ActionPopup.showInfo(
-                        context,
-                        title: fil ? 'Walang bago' : 'Nothing new',
-                        message: fil
-                            ? 'Walang bagong larawan na i-e-export.'
-                            : 'No new captured pictures to export.',
-                      );
-                    } else {
-                      await ActionPopup.showError(
-                        context,
-                        message: '$e',
-                      );
+              if (currentUserJwtStaff())
+                PopupMenuButton<String>(
+                  tooltip: fil ? 'Export' : 'Export',
+                  icon: const Icon(Icons.more_vert),
+                  onSelected: (String value) async {
+                    if (value == 'export_new') {
+                      await _exportNew(fil);
+                    } else if (value == 'export_all') {
+                      await _exportAll(fil);
                     }
-                  }
-                },
-                icon: const Icon(Icons.upload),
-                label: Text(fil ? 'Export Bago' : 'Export New'),
-              ),
-              TextButton.icon(
-                onPressed: () async {
-                  try {
-                    await _export.exportCapturedPhotosZipAll();
-                    if (!context.mounted) return;
-                    await ActionPopup.showSuccess(
-                      context,
-                      title: fil ? 'Export' : 'Export',
-                      message: fil
-                          ? 'Handa nang i-share ang ZIP (lahat).'
-                          : 'ZIP export is ready to share (all captures).',
-                    );
-                  } catch (e) {
-                    if (!context.mounted) return;
-                    await ActionPopup.showError(
-                      context,
-                      message: 'Export failed: $e',
-                    );
-                  }
-                },
-                icon: const Icon(Icons.all_inbox),
-                label: Text(fil ? 'Export Lahat' : 'Export All'),
-              ),
+                  },
+                  itemBuilder: (BuildContext menuContext) =>
+                      <PopupMenuEntry<String>>[
+                    PopupMenuItem<String>(
+                      value: 'export_new',
+                      child: ListTile(
+                        leading: const Icon(Icons.upload_outlined),
+                        title: Text(fil ? 'Export bago' : 'Export new'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'export_all',
+                      child: ListTile(
+                        leading: const Icon(Icons.all_inbox_outlined),
+                        title: Text(fil ? 'Export lahat' : 'Export all'),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                  ],
+                ),
             ],
       bottomNavigationBar: _selectionMode
           ? Material(
@@ -556,42 +597,37 @@ class _CapturedPhotosScreenState extends State<CapturedPhotosScreen> {
                             });
                             return;
                           }
-                          final bool? assign = await showModalBottomSheet<bool>(
+                          final bool? assign = await showPineBottomSheet<bool>(
                             context: context,
-                            showDragHandle: true,
+                            title: fil ? 'Larawan' : 'Picture',
                             builder: (BuildContext sheetContext) {
-                              return SafeArea(
-                                child: Padding(
-                                  padding:
-                                      const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: <Widget>[
-                                      ListTile(
-                                        leading: const Icon(Icons.visibility),
-                                        title: Text(
-                                            fil ? 'Tingnan' : 'View details'),
-                                        onTap: () =>
-                                            Navigator.pop(sheetContext, false),
-                                      ),
-                                      ListTile(
-                                        leading: const Icon(Icons.map),
-                                        title: Text(
-                                          fil
-                                              ? 'Mag-assign sa field'
-                                              : 'Assign to a field',
-                                        ),
-                                        subtitle: Text(
-                                          fil
-                                              ? 'I-tag ang capture na ito'
-                                              : 'Tag this capture to one of your fields',
-                                        ),
-                                        onTap: () =>
-                                            Navigator.pop(sheetContext, true),
-                                      ),
-                                    ],
+                              return Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  ListTile(
+                                    leading: const Icon(Icons.visibility),
+                                    title: Text(
+                                        fil ? 'Tingnan' : 'View details'),
+                                    onTap: () =>
+                                        Navigator.pop(sheetContext, false),
                                   ),
-                                ),
+                                  ListTile(
+                                    leading: const Icon(Icons.map),
+                                    title: Text(
+                                      fil
+                                          ? 'Mag-assign sa field'
+                                          : 'Assign to a field',
+                                    ),
+                                    subtitle: Text(
+                                      fil
+                                          ? 'I-tag ang capture na ito'
+                                          : 'Tag this capture to one of your fields',
+                                    ),
+                                    onTap: () =>
+                                        Navigator.pop(sheetContext, true),
+                                  ),
+                                  const SizedBox(height: 8),
+                                ],
                               );
                             },
                           );
@@ -694,11 +730,13 @@ Future<Map<String, String>?> _pickField(BuildContext context) async {
   final String? uid =
       SupabaseClientProvider.instance.client.auth.currentUser?.id;
   if (uid == null) return null;
-  return showModalBottomSheet<Map<String, String>>(
+  return showPineBottomSheet<Map<String, String>>(
     context: context,
-    showDragHandle: true,
+    title: 'Assign to field',
+    isScrollControlled: true,
     builder: (BuildContext sheetContext) {
-      return SafeArea(
+      return SizedBox(
+        height: 360,
         child: StreamBuilder<List<Map<String, dynamic>>>(
           stream: fieldsRealtimeStreamOrderedByName(),
           builder: (context, snapshot) {

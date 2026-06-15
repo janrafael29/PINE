@@ -8,7 +8,18 @@
   // Rendering thousands of SVG divIcons is expensive; keep the map responsive by only
   // drawing a bounded number of captures in/near the viewport.
   const MAP_VIEW_DETECTIONS_MAX = 900;
-  const MAP_PIN_ZOOM_THRESHOLD = 15;
+  // Field heat badges + choropleth below this zoom; hex capture pins at/above it.
+  const MAP_PIN_ZOOM_THRESHOLD = 18;
+
+  /** User-facing staff role labels (JWT <code>da</code> claim unchanged). */
+  const STAFF_ROLE = 'Agriculturist';
+  const STAFF_ROLE_WITH_OMAG = 'Agriculturist / OMAG';
+  const STAFF_ROLE_WITH_OMAG_LGU = 'Agriculturist / OMAG / LGU';
+  const STAFF_ACCESS_REQUESTS_TITLE = 'Agriculturist access requests';
+  const STAFF_ACCESS_EMPTY_HINT =
+    'No pending requests. Staff must register as ' +
+    STAFF_ROLE_WITH_OMAG_LGU +
+    ' during sign-up; requests are submitted automatically.';
 
   function detectionIsPositive(d) {
     if (!d) return false;
@@ -66,16 +77,25 @@
     return null;
   }
 
-  function capturesForDrawer() {
-    let list = cacheDetections.slice();
+  function filterDetectionsForDrawer(list) {
     if (capturesDrawerFilter === 'positive') {
-      list = list.filter(detectionIsPositive);
-    } else if (capturesDrawerFilter === 'pending') {
-      list = list.filter(function (d) {
+      return list.filter(detectionIsPositive);
+    }
+    if (capturesDrawerFilter === 'negative') {
+      return list.filter(function (d) {
+        return !detectionIsPositive(d);
+      });
+    }
+    if (capturesDrawerFilter === 'pending') {
+      return list.filter(function (d) {
         return detectionIsPositive(d) && !expertResponseForDetection(d.id);
       });
     }
     return list;
+  }
+
+  function capturesForDrawer() {
+    return filterDetectionsForDrawer(cacheDetections.slice());
   }
 
   function formatReportDate(iso) {
@@ -99,6 +119,16 @@
       return months[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear();
     } catch (_) {
       return String(iso);
+    }
+  }
+
+  function formatReportDateShort(iso) {
+    if (!iso) return '—';
+    try {
+      const d = new Date(iso);
+      return d.getMonth() + 1 + '/' + d.getDate() + '/' + String(d.getFullYear()).slice(-2);
+    } catch (_) {
+      return '—';
     }
   }
 
@@ -207,7 +237,7 @@
         statusEl.textContent = 'Saved';
         statusEl.classList.add('ok');
       }
-      toast('DA/OMAG advice saved.');
+      toast(STAFF_ROLE_WITH_OMAG + ' advice saved.');
       if (drawerSection === 'captures') renderDrawer();
     } catch (err) {
       if (statusEl) {
@@ -251,7 +281,7 @@
   }
 
   async function reviewDaAccessRequest(requestId, action) {
-    if (!requireFullAdmin('DA request review')) return false;
+    if (!requireFullAdmin(STAFF_ROLE + ' access request review')) return false;
     const url = reviewDaRequestFunctionUrlResolved();
     if (!url || url.indexOf('http') !== 0) {
       toast('Missing supabaseUrl in config.', true);
@@ -280,7 +310,11 @@
       if (!res.ok) {
         throw new Error(j.error || 'Request failed');
       }
-      toast(action === 'approve' ? 'DA access approved.' : 'DA request rejected.');
+      toast(
+        action === 'approve'
+          ? STAFF_ROLE + ' access approved.'
+          : STAFF_ROLE + ' access request rejected.'
+      );
       await loadDashboard();
       openDrawer('users');
       return true;
@@ -290,14 +324,188 @@
     }
   }
 
+  function daRequestApplicantName(r) {
+    if (!r) return 'Unknown user';
+    const full = r.full_name != null ? String(r.full_name).trim() : '';
+    if (full) return full;
+    const uid = r.user_id != null ? String(r.user_id) : '';
+    if (uid) return profileDisplayName(uid);
+    return 'Unknown user';
+  }
+
+  function daRequestOrganization(r) {
+    if (!r) return 'unspecified organization';
+    const org = r.organization != null ? String(r.organization).trim() : '';
+    return org || 'unspecified organization';
+  }
+
+  function daRequestNotifyLine(r) {
+    return (
+      escapeHtml(daRequestApplicantName(r)) +
+      ' wants to be given access as a ' +
+      '<strong>' +
+      escapeHtml(daRequestOrganization(r)) +
+      '</strong> staff member.'
+    );
+  }
+
+  function daRequestDetailsHtml(r) {
+    const rows = [];
+    const full = r.full_name != null ? String(r.full_name).trim() : '';
+    const org = r.organization != null ? String(r.organization).trim() : '';
+    const loc = r.company_location != null ? String(r.company_location).trim() : '';
+    const pos = r.position != null ? String(r.position).trim() : '';
+    if (full) {
+      rows.push(
+        '<div class="pine-da-request-detail"><span class="pine-da-request-detail-label">Full name</span><span>' +
+          escapeHtml(full) +
+          '</span></div>'
+      );
+    }
+    if (org) {
+      rows.push(
+        '<div class="pine-da-request-detail"><span class="pine-da-request-detail-label">Organization</span><span>' +
+          escapeHtml(org) +
+          '</span></div>'
+      );
+    }
+    if (loc) {
+      rows.push(
+        '<div class="pine-da-request-detail"><span class="pine-da-request-detail-label">Office location</span><span>' +
+          escapeHtml(loc) +
+          '</span></div>'
+      );
+    }
+    if (pos) {
+      rows.push(
+        '<div class="pine-da-request-detail"><span class="pine-da-request-detail-label">Position</span><span>' +
+          escapeHtml(pos) +
+          '</span></div>'
+      );
+    }
+    if (rows.length === 0) return '';
+    return '<div class="pine-da-request-details">' + rows.join('') + '</div>';
+  }
+
+  const DA_NOTIFY_SEEN_KEY = 'pine-da-notify-seen';
+
+  function getSeenDaNotifyIds() {
+    try {
+      const raw = sessionStorage.getItem(DA_NOTIFY_SEEN_KEY);
+      if (!raw) return new Set();
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return new Set();
+      return new Set(arr.map(function (id) {
+        return String(id);
+      }));
+    } catch (_) {
+      return new Set();
+    }
+  }
+
+  function markDaNotifySeen(ids) {
+    const seen = getSeenDaNotifyIds();
+    for (let i = 0; i < ids.length; i++) {
+      seen.add(String(ids[i]));
+    }
+    try {
+      sessionStorage.setItem(
+        DA_NOTIFY_SEEN_KEY,
+        JSON.stringify(Array.from(seen))
+      );
+    } catch (_) {
+      /* ignore quota */
+    }
+  }
+
+  function syncDaPendingBadge() {
+    const badge = $('pine-da-pending-badge');
+    if (!badge) return;
+    const pending = cacheDaRequests.filter(function (r) {
+      return r.status === 'pending';
+    });
+    if (!sessionIsFullAdmin || pending.length === 0) {
+      badge.hidden = true;
+      badge.textContent = '';
+      return;
+    }
+    badge.hidden = false;
+    badge.textContent = String(pending.length);
+  }
+
+  function hideDaNotifyModal() {
+    const modal = $('pine-da-notify');
+    if (modal) modal.hidden = true;
+  }
+
+  function showDaNotifyModal(requests) {
+    const modal = $('pine-da-notify');
+    const body = $('pine-da-notify-body');
+    if (!modal || !body || !requests || requests.length === 0) return;
+    const items = requests
+      .map(function (r) {
+        const prof = cacheProfiles.find(function (p) {
+          return String(p.id) === String(r.user_id);
+        });
+        const em =
+          prof && prof.email != null && String(prof.email).trim() !== ''
+            ? '<p class="pine-muted pine-da-notify-email">' +
+              escapeHtml(String(prof.email).trim()) +
+              '</p>'
+            : '';
+        const note =
+          r.note != null && String(r.note).trim() !== ''
+            ? '<p class="pine-muted pine-da-notify-note">' +
+              escapeHtml(String(r.note).trim()) +
+              '</p>'
+            : '';
+        return (
+          '<article class="pine-da-notify-item">' +
+          '<p class="pine-da-notify-line">' +
+          daRequestNotifyLine(r) +
+          '</p>' +
+          daRequestDetailsHtml(r) +
+          em +
+          note +
+          '</article>'
+        );
+      })
+      .join('');
+    body.innerHTML = items;
+    modal.hidden = false;
+    modal._pendingNotifyIds = requests.map(function (r) {
+      return String(r.id);
+    });
+  }
+
+  function maybeShowDaAccessNotifications() {
+    if (!sessionIsFullAdmin) {
+      hideDaNotifyModal();
+      return;
+    }
+    const pending = cacheDaRequests.filter(function (r) {
+      return r.status === 'pending';
+    });
+    if (pending.length === 0) {
+      hideDaNotifyModal();
+      return;
+    }
+    const seen = getSeenDaNotifyIds();
+    const unseen = pending.filter(function (r) {
+      return !seen.has(String(r.id));
+    });
+    if (unseen.length === 0) return;
+    showDaNotifyModal(unseen);
+  }
+
   function buildDaRequestsSectionHtml() {
     const pending = cacheDaRequests.filter(function (r) {
       return r.status === 'pending';
     });
     if (pending.length === 0) {
       return (
-        '<h3 class="pine-drawer-h3">DA access requests</h3>' +
-        '<p class="pine-muted pine-drawer-fields-hint">No pending requests. Farmers submit from the mobile app under <strong>More → DA / OMAG access</strong>.</p>'
+        '<h3 class="pine-drawer-h3">' + STAFF_ACCESS_REQUESTS_TITLE + '</h3>' +
+        '<p class="pine-muted pine-drawer-fields-hint">' + STAFF_ACCESS_EMPTY_HINT + '</p>'
       );
     }
     const cards = pending
@@ -305,7 +513,7 @@
         const prof = cacheProfiles.find(function (p) {
           return String(p.id) === String(r.user_id);
         });
-        const name = prof ? profileDisplayName(r.user_id) : String(r.user_id);
+        const name = daRequestApplicantName(r);
         const em =
           prof && prof.email != null && String(prof.email).trim() !== ''
             ? String(prof.email).trim()
@@ -330,12 +538,13 @@
           '</strong>' +
           when +
           (em ? '<br><span class="pine-muted">' + escapeHtml(em) + '</span>' : '') +
+          daRequestDetailsHtml(r) +
           note +
           '</div>' +
           '<div class="pine-da-request-actions">' +
           '<button type="button" class="pine-btn pine-btn-primary pine-btn--sm" data-da-request-approve="' +
           escapeHtml(String(r.id)) +
-          '">Approve DA</button>' +
+          '">Approve ' + STAFF_ROLE + '</button>' +
           '<button type="button" class="pine-btn pine-btn-secondary pine-btn--sm" data-da-request-reject="' +
           escapeHtml(String(r.id)) +
           '">Reject</button>' +
@@ -344,7 +553,7 @@
       })
       .join('');
     return (
-      '<h3 class="pine-drawer-h3">DA access requests</h3>' +
+      '<h3 class="pine-drawer-h3">' + STAFF_ACCESS_REQUESTS_TITLE + '</h3>' +
       '<p class="pine-muted pine-drawer-fields-hint">Approve to grant <code>da: true</code>. User must sign out and sign in again.</p>' +
       '<div class="pine-da-request-list">' +
       cards +
@@ -421,6 +630,11 @@
   const elDrawer = $('admin-drawer');
   const elDrawerContent = $('drawer-content');
   const elDrawerTitle = $('drawer-title');
+  const elDrawerExportReviewed = $('drawer-export-reviewed');
+  const elDrawerBackdrop = $('drawer-backdrop');
+  const DRAWER_WIDTH_KEY = 'pine_admin_drawer_width_v1';
+  const DRAWER_WIDTH_MIN = 320;
+  const DRAWER_WIDTH_MAX_RATIO = 0.92;
   const elToast = $('pine-toast');
 
   let drawerSection = null;
@@ -438,13 +652,180 @@
   let cacheExpertResponses = [];
   let cacheFarmInsights = [];
   let capturesDrawerFilter = 'all';
+  /** @type {Record<string, boolean>} */
+  let openReportFieldGroups = Object.create(null);
+  /** @type {Array<{key:string,fieldId:string,fieldName:string,owner:string,items:Array}>} */
+  let lastReportFieldGroups = [];
+  /** @type {Record<string, Array>} */
+  let reportsFieldDetectionsCache = Object.create(null);
+  /** @type {Record<string, boolean>} */
+  let reportsFieldLoading = Object.create(null);
+  /** @type {Record<string, string>} */
+  let reportsFieldLoadError = Object.create(null);
+  let dashboardRealtimeChannel = null;
+  let scheduleDashboardUiRefresh = function () {};
+  const REALTIME_UI_DEBOUNCE_MS = 400;
+  const REPORTS_FIELD_DETECTION_LIMIT = 200;
+  const DETECTION_SELECT_COLS =
+    'id, user_id, field_id, image_url, latitude, longitude, count, confidence, has_mealybugs, created_at';
   let analyticsChartInstances = [];
+  /** @type {'7d'|'30d'|'1y'} */
+  let analyticsTrendRange = '30d';
 
   function destroyAnalyticsCharts() {
     for (let i = 0; i < analyticsChartInstances.length; i++) {
       analyticsChartInstances[i].destroy();
     }
     analyticsChartInstances = [];
+  }
+
+  function resizeAnalyticsCharts() {
+    for (let i = 0; i < analyticsChartInstances.length; i++) {
+      try {
+        analyticsChartInstances[i].resize();
+      } catch (_) {}
+    }
+  }
+
+  function analyticsTrendRangeBtnHtml(key, label) {
+    const active = analyticsTrendRange === key ? ' is-active' : '';
+    return (
+      '<button type="button" class="pine-analytics-trend-btn' +
+      active +
+      '" data-analytics-trend-range="' +
+      key +
+      '">' +
+      label +
+      '</button>'
+    );
+  }
+
+  function buildPositiveTrendSeries(pos, range) {
+    const dayMs = 86400000;
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    if (range === '1y') {
+      const monthNames = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ];
+      const buckets = [];
+      for (let i = 11; i >= 0; i--) {
+        buckets.push(new Date(now.getFullYear(), now.getMonth() - i, 1));
+      }
+      const counts = buckets.map(function () {
+        return 0;
+      });
+      for (let pi = 0; pi < pos.length; pi++) {
+        const created = pos[pi].created_at ? new Date(pos[pi].created_at) : null;
+        if (!created || isNaN(created.getTime())) continue;
+        const bucket = new Date(created.getFullYear(), created.getMonth(), 1);
+        for (let bi = 0; bi < buckets.length; bi++) {
+          if (bucket.getTime() === buckets[bi].getTime()) {
+            counts[bi] += 1;
+            break;
+          }
+        }
+      }
+      return {
+        labels: buckets.map(function (b) {
+          return monthNames[b.getMonth()];
+        }),
+        values: counts,
+      };
+    }
+
+    const dayCount = range === '7d' ? 7 : 30;
+    const labelEvery = range === '7d' ? 1 : 5;
+    const labels = [];
+    const values = [];
+    for (let di = dayCount - 1; di >= 0; di--) {
+      const dayStart = new Date(todayStart.getTime() - di * dayMs);
+      const dayEnd = dayStart.getTime() + dayMs;
+      const idx = dayCount - 1 - di;
+      labels.push(
+        labelEvery === 1 || idx % labelEvery === 0 || di === 0
+          ? dayStart.getMonth() + 1 + '/' + dayStart.getDate()
+          : '',
+      );
+      let c = 0;
+      for (let pi = 0; pi < pos.length; pi++) {
+        const t = pos[pi].created_at ? new Date(pos[pi].created_at).getTime() : 0;
+        if (t >= dayStart.getTime() && t < dayEnd) c += 1;
+      }
+      values.push(c);
+    }
+    return { labels: labels, values: values };
+  }
+
+  function destroyAnalyticsTrendChart() {
+    for (let i = analyticsChartInstances.length - 1; i >= 0; i--) {
+      const inst = analyticsChartInstances[i];
+      if (inst.canvas && inst.canvas.id === 'pine-analytics-trend') {
+        inst.destroy();
+        analyticsChartInstances.splice(i, 1);
+      }
+    }
+  }
+
+  function mountAnalyticsTrendChart(pos) {
+    const trendCanvas = document.getElementById('pine-analytics-trend');
+    if (!trendCanvas || typeof Chart === 'undefined') return;
+    destroyAnalyticsTrendChart();
+    const series = buildPositiveTrendSeries(pos, analyticsTrendRange);
+    const olive = 'rgba(118, 148, 76, 0.85)';
+    const oliveSoft = 'rgba(118, 148, 76, 0.35)';
+    analyticsChartInstances.push(
+      new Chart(trendCanvas, {
+        type: 'line',
+        data: {
+          labels: series.labels,
+          datasets: [
+            {
+              label: 'Positive reports',
+              data: series.values,
+              borderColor: olive,
+              backgroundColor: oliveSoft,
+              fill: true,
+              tension: 0.3,
+              pointRadius: 0,
+              pointHitRadius: 8,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: {
+              ticks: {
+                maxRotation: 0,
+                autoSkip: true,
+                maxTicksLimit: analyticsTrendRange === '1y' ? 12 : analyticsTrendRange === '7d' ? 7 : 10,
+              },
+              grid: { display: true, color: 'rgba(46, 49, 65, 0.06)' },
+            },
+            y: {
+              beginAtZero: true,
+              ticks: { precision: 0 },
+              grid: { color: 'rgba(46, 49, 65, 0.06)' },
+            },
+          },
+        },
+      }),
+    );
   }
 
   const mapViewState = {
@@ -543,9 +924,9 @@
     });
     const brand = document.querySelector('.pine-map-sidebar-brand');
     if (brand) {
-      brand.textContent = daOnly ? 'PineSight DA' : 'PineSight Admin';
+      brand.textContent = daOnly ? 'PineSight ' + STAFF_ROLE : 'PineSight Admin';
     }
-    document.title = daOnly ? 'PineSight — DA' : 'PineSight — Admin';
+    document.title = daOnly ? 'PineSight — ' + STAFF_ROLE : 'PineSight — Admin';
     if (!full) {
       clearCaptureSelection();
       mapViewState.multiSelectMode = false;
@@ -598,6 +979,168 @@
         fn.apply(ctx, args);
       }, ms);
     };
+  }
+
+  function fieldKeyForDetection(d) {
+    if (!d) return '';
+    const fid = d.field_id == null ? '' : String(d.field_id);
+    return fid || 'none:' + String(d.user_id || 'unknown');
+  }
+
+  function mergeDetectionRow(row, scheduleRefresh) {
+    if (!row || row.id == null) return;
+    const id = String(row.id);
+    let found = false;
+    for (let i = 0; i < cacheDetections.length; i++) {
+      if (String(cacheDetections[i].id) === id) {
+        cacheDetections[i] = row;
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      cacheDetections.unshift(row);
+      if (cacheDetections.length > DETECTIONS_LIMIT) {
+        cacheDetections.length = DETECTIONS_LIMIT;
+      }
+    }
+    const fieldKey = fieldKeyForDetection(row);
+    const cached = reportsFieldDetectionsCache[fieldKey];
+    if (cached) {
+      let cachedFound = false;
+      for (let j = 0; j < cached.length; j++) {
+        if (String(cached[j].id) === id) {
+          cached[j] = row;
+          cachedFound = true;
+          break;
+        }
+      }
+      if (!cachedFound) cached.unshift(row);
+    }
+    if (scheduleRefresh !== false) scheduleDashboardUiRefresh();
+  }
+
+  function removeDetectionFromCache(detId, scheduleRefresh) {
+    const id = String(detId);
+    cacheDetections = cacheDetections.filter(function (d) {
+      return String(d.id) !== id;
+    });
+    Object.keys(reportsFieldDetectionsCache).forEach(function (key) {
+      reportsFieldDetectionsCache[key] = reportsFieldDetectionsCache[key].filter(function (d) {
+        return String(d.id) !== id;
+      });
+    });
+    if (scheduleRefresh !== false) scheduleDashboardUiRefresh();
+  }
+
+  function mergeExpertResponseRow(row, scheduleRefresh) {
+    if (!row || row.detection_id == null) return;
+    const detId = String(row.detection_id);
+    let found = false;
+    for (let i = 0; i < cacheExpertResponses.length; i++) {
+      if (String(cacheExpertResponses[i].detection_id) === detId) {
+        cacheExpertResponses[i] = row;
+        found = true;
+        break;
+      }
+    }
+    if (!found) cacheExpertResponses.push(row);
+    if (scheduleRefresh !== false) scheduleDashboardUiRefresh();
+  }
+
+  function removeExpertResponseFromCache(detId, scheduleRefresh) {
+    const id = String(detId);
+    cacheExpertResponses = cacheExpertResponses.filter(function (r) {
+      return String(r.detection_id) !== id;
+    });
+    if (scheduleRefresh !== false) scheduleDashboardUiRefresh();
+  }
+
+  scheduleDashboardUiRefresh = debounce(function refreshDashboardUiFromCache() {
+    syncDaPendingBadge();
+    if (elStatAccounts) elStatAccounts.textContent = String(cacheProfiles.length);
+    if (elStatFields) elStatFields.textContent = String(cacheFields.length);
+    if (elStatDetections) {
+      const posCount = positiveDetections(cacheDetections).length;
+      elStatDetections.textContent = String(posCount) + ' pos / ' + String(cacheDetections.length) + ' total';
+    }
+    if (ensureMap()) rebuildMapLayers();
+    if (drawerSection) renderDrawer();
+  }, REALTIME_UI_DEBOUNCE_MS);
+
+  function unsubscribeDashboardRealtime() {
+    if (!dashboardRealtimeChannel) return;
+    supabase.removeChannel(dashboardRealtimeChannel);
+    dashboardRealtimeChannel = null;
+  }
+
+  function subscribeDashboardRealtime() {
+    unsubscribeDashboardRealtime();
+    dashboardRealtimeChannel = supabase
+      .channel('pine-admin-dashboard-v1')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'detections' },
+        function (payload) {
+          if (payload.eventType === 'DELETE' && payload.old) {
+            removeDetectionFromCache(payload.old.id, false);
+          } else if (payload.new) {
+            mergeDetectionRow(payload.new, false);
+          }
+          scheduleDashboardUiRefresh();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'expert_responses' },
+        function (payload) {
+          if (payload.eventType === 'DELETE' && payload.old) {
+            removeExpertResponseFromCache(payload.old.detection_id, false);
+          } else if (payload.new) {
+            mergeExpertResponseRow(payload.new, false);
+          }
+          scheduleDashboardUiRefresh();
+        }
+      )
+      .subscribe();
+  }
+
+  async function loadFieldDetectionsForGroup(groupKey) {
+    const group = lastReportFieldGroups.find(function (g) {
+      return g.key === groupKey;
+    });
+    if (!group) return;
+    reportsFieldLoading[groupKey] = true;
+    reportsFieldLoadError[groupKey] = '';
+    renderDrawer();
+    try {
+      let q = supabase
+        .from('detections')
+        .select(DETECTION_SELECT_COLS)
+        .order('created_at', { ascending: false })
+        .limit(REPORTS_FIELD_DETECTION_LIMIT);
+      if (group.fieldId) {
+        q = q.eq('field_id', group.fieldId);
+      } else if (groupKey.indexOf('none:') === 0) {
+        const uid = groupKey.slice(5);
+        q = q.is('field_id', null);
+        if (uid && uid !== 'unknown') q = q.eq('user_id', uid);
+      } else {
+        q = q.eq('field_id', groupKey);
+      }
+      const { data, error } = await q;
+      if (error) throw error;
+      const rows = data || [];
+      reportsFieldDetectionsCache[groupKey] = rows;
+      for (let i = 0; i < rows.length; i++) {
+        mergeDetectionRow(rows[i], false);
+      }
+    } catch (err) {
+      reportsFieldLoadError[groupKey] = err && err.message ? err.message : 'Load failed';
+    } finally {
+      delete reportsFieldLoading[groupKey];
+      renderDrawer();
+    }
   }
 
   function validateConfig() {
@@ -1421,12 +1964,12 @@
       '">' +
       '<label class="pine-reply-label" for="pine-reply-text-' +
       id +
-      '">DA/OMAG advice</label>' +
+      '">' + STAFF_ROLE_WITH_OMAG + ' advice</label>' +
       '<textarea class="pine-input" id="pine-reply-text-' +
       id +
       '" data-expert-reply-text="' +
       id +
-      '" placeholder="Treatment advice or next steps for the farmer…" rows="3">' +
+      '" placeholder="Treatment advice or next steps for the farmer…" rows="2">' +
       escapeHtml(replyText) +
       '</textarea>' +
       '<div class="pine-reply-actions-row">' +
@@ -1443,7 +1986,7 @@
       '<option value="inspect"' +
       (resp && resp.action_type === 'inspect' ? ' selected' : '') +
       '>Inspect</option></select>' +
-      '<button type="button" class="pine-btn pine-btn-primary pine-btn--sm" data-expert-reply-save="' +
+      '<button type="button" class="pine-btn pine-btn-primary pine-btn--sm pine-reply-save-btn" data-expert-reply-save="' +
       id +
       '">Save advice</button></div>' +
       '<div class="pine-save-status pine-save-status--compact" data-expert-reply-status="' +
@@ -1455,6 +1998,300 @@
   function reportHasExpertReply(detId) {
     const resp = expertResponseForDetection(detId);
     return !!(resp && resp.strategy_text && String(resp.strategy_text).trim());
+  }
+
+  let exportReviewedInProgress = false;
+
+  function csvCell(val) {
+    const s = val == null ? '' : String(val);
+    if (/[",\n\r]/.test(s)) {
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+  }
+
+  function confidenceToPercent(raw) {
+    if (raw == null || raw === '') return 0;
+    const v = Number(raw);
+    if (!Number.isFinite(v)) return 0;
+    const pct = v <= 1 ? v * 100 : v;
+    return Math.max(0, Math.min(100, Math.round(pct)));
+  }
+
+  function fieldNameForDetection(d) {
+    const fid = d.field_id == null ? '' : String(d.field_id);
+    const field = cacheFields.find(function (f) {
+      return String(f.id) === fid;
+    });
+    return field ? field.name || 'Field' : fid || 'Unassigned';
+  }
+
+  function parseStoredDetectionsJson(raw) {
+    if (raw == null) return [];
+    try {
+      let decoded = raw;
+      if (typeof raw === 'string') {
+        const s = raw.trim();
+        if (!s) return [];
+        decoded = JSON.parse(s);
+      }
+      if (!Array.isArray(decoded)) return [];
+      const out = [];
+      for (let i = 0; i < decoded.length; i++) {
+        const m = decoded[i];
+        if (!m || typeof m !== 'object') continue;
+        out.push({
+          left: Number(m.left) || 0,
+          top: Number(m.top) || 0,
+          width: Number(m.width) || 0,
+          height: Number(m.height) || 0,
+          confidence: Number(m.confidence) || 0,
+        });
+      }
+      return out;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function reviewedDetectionsForExport(fieldId) {
+    const fid = fieldId == null ? '' : String(fieldId).trim();
+    return cacheDetections.filter(function (d) {
+      if (!reportHasExpertReply(d.id)) return false;
+      const url = d.image_url == null ? '' : String(d.image_url).trim();
+      if (!url) return false;
+      if (fid) {
+        const df = d.field_id == null ? '' : String(d.field_id);
+        if (df !== fid) return false;
+      }
+      return true;
+    });
+  }
+
+  function countReviewedForExport(fieldId) {
+    return reviewedDetectionsForExport(fieldId).length;
+  }
+
+  async function fetchDetectionDetailsByIds(ids) {
+    const map = Object.create(null);
+    const unique = Array.from(new Set(ids.map(function (id) {
+      return String(id);
+    }))).filter(Boolean);
+    const chunkSize = 80;
+    for (let i = 0; i < unique.length; i += chunkSize) {
+      const chunk = unique.slice(i, i + chunkSize);
+      const { data, error } = await supabase
+        .from('detections')
+        .select('id, detections_json')
+        .in('id', chunk);
+      if (error) throw error;
+      const rows = data || [];
+      for (let ri = 0; ri < rows.length; ri++) {
+        map[String(rows[ri].id)] = rows[ri];
+      }
+    }
+    return map;
+  }
+
+  async function renderDetectionOverlayBlob(imageUrl, detections) {
+    const url = imageUrl == null ? '' : String(imageUrl).trim();
+    if (!url) return null;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const imgBlob = await res.blob();
+      const bitmap = await createImageBitmap(imgBlob);
+      const imgW = bitmap.width;
+      const imgH = bitmap.height;
+      const canvas = document.createElement('canvas');
+      canvas.width = imgW;
+      canvas.height = imgH;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        bitmap.close();
+        return null;
+      }
+      ctx.drawImage(bitmap, 0, 0);
+      bitmap.close();
+
+      const boxColor = '#76944C';
+      ctx.strokeStyle = boxColor;
+      ctx.lineWidth = Math.max(2, Math.round(Math.min(imgW, imgH) / 400));
+      ctx.font =
+        Math.max(11, Math.round(Math.min(imgW, imgH) / 45)) +
+        'px system-ui, sans-serif';
+
+      for (let i = 0; i < detections.length; i++) {
+        const d = detections[i];
+        if (d.width < 2 || d.height < 2) continue;
+        ctx.strokeRect(d.left, d.top, d.width, d.height);
+        const conf = confidenceToPercent(d.confidence);
+        const label = String(conf) + '%';
+        const tw = ctx.measureText(label).width + 8;
+        const th = Math.max(14, Math.round(Math.min(imgW, imgH) / 38));
+        const ly = Math.max(0, d.top - th);
+        ctx.fillStyle = boxColor;
+        ctx.fillRect(d.left, ly, tw, th);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(label, d.left + 4, ly + th - 4);
+      }
+
+      return await new Promise(function (resolve) {
+        canvas.toBlob(function (b) {
+          resolve(b);
+        }, 'image/png');
+      });
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function triggerDownloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () {
+      URL.revokeObjectURL(url);
+    }, 2000);
+  }
+
+  function syncReportsExportHeaderButton() {
+    if (!elDrawerExportReviewed) return;
+    const show = drawerSection === 'captures';
+    elDrawerExportReviewed.hidden = !show;
+    if (!show) return;
+    const reviewedExportCount = countReviewedForExport();
+    elDrawerExportReviewed.disabled =
+      exportReviewedInProgress || reviewedExportCount === 0;
+    elDrawerExportReviewed.textContent =
+      reviewedExportCount === 0
+        ? 'Export reviewed (ZIP)'
+        : 'Export reviewed (' + String(reviewedExportCount) + ')';
+  }
+
+  function reportsExportRowHtml(reviewedExportCount) {
+    return (
+      '<div class="pine-reports-export-row">' +
+      '<button type="button" class="pine-btn pine-btn-secondary pine-btn--sm" data-export-reviewed="all"' +
+      (reviewedExportCount === 0 ? ' disabled' : '') +
+      ' title="Download CSV and annotated PNGs for captures with expert advice">Export reviewed (ZIP)</button>' +
+      '<span class="pine-muted pine-reports-export-hint">' +
+      (reviewedExportCount === 0
+        ? 'No reviewed captures yet'
+        : String(reviewedExportCount) + ' reviewed · CSV + annotated images') +
+      '</span></div>'
+    );
+  }
+
+  async function exportReviewedImagesCsvZip(fieldId) {
+    if (exportReviewedInProgress) return;
+    if (typeof JSZip === 'undefined') {
+      toast('Export unavailable (JSZip not loaded).', true);
+      return;
+    }
+
+    const reviewed = reviewedDetectionsForExport(fieldId);
+    if (reviewed.length === 0) {
+      toast('No reviewed images to export.', true);
+      return;
+    }
+
+    exportReviewedInProgress = true;
+    syncReportsExportHeaderButton();
+    const exportBtns = document.querySelectorAll(
+      '[data-export-reviewed], [data-export-reviewed-field]',
+    );
+    exportBtns.forEach(function (btn) {
+      if (btn instanceof HTMLButtonElement) btn.disabled = true;
+    });
+    toast('Preparing export…');
+
+    try {
+      const detailById = await fetchDetectionDetailsByIds(
+        reviewed.map(function (d) {
+          return d.id;
+        }),
+      );
+      const headers = [
+        'detection_id',
+        'field_name',
+        'farmer',
+        'captured_at',
+        'mealybug_count',
+        'confidence_pct',
+        'latitude',
+        'longitude',
+        'expert_advice',
+        'expert_action',
+        'expert_updated_at',
+        'annotated_image_file',
+      ];
+      const csvLines = [headers.join(',')];
+      const zip = new JSZip();
+      const imagesFolder = zip.folder('images');
+      let exported = 0;
+
+      for (let i = 0; i < reviewed.length; i++) {
+        const d = reviewed[i];
+        const detId = String(d.id);
+        const expert = expertResponseForDetection(detId);
+        const advice =
+          expert && expert.strategy_text ? String(expert.strategy_text).trim() : '';
+        if (!advice) continue;
+
+        const detail = detailById[detId];
+        const detections = parseStoredDetectionsJson(
+          detail ? detail.detections_json : null,
+        );
+        const pngBlob = await renderDetectionOverlayBlob(d.image_url, detections);
+        if (!pngBlob) continue;
+
+        const imageName = detId + '.png';
+        imagesFolder.file(imageName, pngBlob);
+        csvLines.push(
+          [
+            csvCell(detId),
+            csvCell(fieldNameForDetection(d)),
+            csvCell(profileDisplayName(d.user_id)),
+            csvCell(d.created_at || ''),
+            csvCell(d.count == null ? 0 : d.count),
+            csvCell(confidenceToPercent(d.confidence)),
+            csvCell(d.latitude == null ? '' : d.latitude),
+            csvCell(d.longitude == null ? '' : d.longitude),
+            csvCell(advice),
+            csvCell(expert && expert.action_type ? expert.action_type : ''),
+            csvCell(expert && expert.updated_at ? expert.updated_at : ''),
+            csvCell(imageName),
+          ].join(','),
+        );
+        exported += 1;
+      }
+
+      if (exported === 0) {
+        throw new Error('Could not build export (images or advice missing).');
+      }
+
+      zip.file('reviewed-captures.csv', csvLines.join('\n') + '\n');
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const suffix = fieldId ? '-field-' + String(fieldId).slice(0, 8) : '';
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      triggerDownloadBlob(zipBlob, 'pine-reviewed-export' + suffix + '-' + stamp + '.zip');
+      toast('Exported ' + String(exported) + ' reviewed capture(s).');
+    } catch (e) {
+      console.error(e);
+      toast(e && e.message ? e.message : 'Export failed', true);
+    } finally {
+      exportReviewedInProgress = false;
+      syncReportsExportHeaderButton();
+      exportBtns.forEach(function (btn) {
+        if (btn instanceof HTMLButtonElement) btn.disabled = false;
+      });
+    }
   }
 
   function buildReportThumbHtml(imageUrl, detId) {
@@ -1477,6 +2314,119 @@
       id +
       '" />' +
       '<span class="pine-report-thumb-zoom">View</span></a>'
+    );
+  }
+
+  function groupDetectionsByField(list) {
+    const buckets = Object.create(null);
+    for (let i = 0; i < list.length; i++) {
+      const d = list[i];
+      const fid = d.field_id == null ? '' : String(d.field_id);
+      const key = fid || 'none:' + String(d.user_id || 'unknown');
+      if (!buckets[key]) {
+        const field = fid
+          ? cacheFields.find(function (f) {
+              return String(f.id) === fid;
+            })
+          : null;
+        buckets[key] = {
+          key: key,
+          fieldId: fid,
+          fieldName: field ? field.name || 'Field' : fid ? 'Field' : 'Unassigned',
+          owner: profileDisplayName(d.user_id),
+          items: [],
+        };
+      }
+      buckets[key].items.push(d);
+    }
+    const groups = Object.keys(buckets).map(function (k) {
+      return buckets[k];
+    });
+    groups.forEach(function (g) {
+      g.items.sort(function (a, b) {
+        return String(b.created_at || '').localeCompare(String(a.created_at || ''));
+      });
+    });
+    groups.sort(function (a, b) {
+      const ap = a.items.filter(function (d) {
+        return detectionIsPositive(d) && !reportHasExpertReply(d.id);
+      }).length;
+      const bp = b.items.filter(function (d) {
+        return detectionIsPositive(d) && !reportHasExpertReply(d.id);
+      }).length;
+      if (bp !== ap) return bp - ap;
+      const al = a.items[0] ? a.items[0].created_at || '' : '';
+      const bl = b.items[0] ? b.items[0].created_at || '' : '';
+      return String(bl).localeCompare(String(al));
+    });
+    return groups;
+  }
+
+  function buildReportFieldGroupHtml(group) {
+    const isOpen = !!openReportFieldGroups[group.key];
+    const pending = group.items.filter(function (d) {
+      return detectionIsPositive(d) && !reportHasExpertReply(d.id);
+    }).length;
+    const captureLabel = group.items.length === 1 ? 'capture' : 'captures';
+    let bodyInner = '';
+    if (isOpen) {
+      if (reportsFieldLoading[group.key]) {
+        bodyInner =
+          '<div class="pine-report-field-loading">Loading captures…</div>';
+      } else if (reportsFieldLoadError[group.key]) {
+        bodyInner =
+          '<div class="pine-empty pine-empty--reports">' +
+          escapeHtml(reportsFieldLoadError[group.key]) +
+          '</div>';
+      } else {
+        const loaded = reportsFieldDetectionsCache[group.key];
+        const source = loaded != null ? loaded : group.items;
+        const filtered = filterDetectionsForDrawer(source);
+        bodyInner =
+          filtered.length === 0
+            ? '<div class="pine-empty pine-empty--reports">No reports match this filter.</div>'
+            : filtered.map(buildReportCardHtml).join('');
+      }
+    }
+    const reviewedCount = group.fieldId ? countReviewedForExport(group.fieldId) : 0;
+    const fieldExportBtn =
+      reviewedCount > 0 && group.fieldId
+        ? '<button type="button" class="pine-btn pine-btn-secondary pine-btn--sm pine-report-field-export" data-export-reviewed-field="' +
+          escapeHtml(String(group.fieldId)) +
+          '" title="Export reviewed images for this field">Export</button>'
+        : '';
+    return (
+      '<section class="pine-report-field-group' +
+      (isOpen ? ' is-open' : '') +
+      '">' +
+      '<div class="pine-report-field-group-header-wrap">' +
+      '<button type="button" class="pine-report-field-group-header" data-report-field-toggle="' +
+      escapeHtml(group.key) +
+      '">' +
+      '<div class="pine-report-field-group-heading">' +
+      '<span class="pine-report-field-group-name">' +
+      escapeHtml(group.fieldName) +
+      '</span>' +
+      '<span class="pine-report-field-group-meta">' +
+      escapeHtml(group.owner) +
+      ' · ' +
+      String(group.items.length) +
+      ' ' +
+      captureLabel +
+      (pending > 0 ? ' · ' + pending + ' pending' : '') +
+      '</span></div>' +
+      (pending > 0
+        ? '<span class="pine-report-field-group-pending">' + String(pending) + '</span>'
+        : '') +
+      '<span class="pine-report-field-group-chevron" aria-hidden="true">' +
+      (isOpen ? '▾' : '▸') +
+      '</span>' +
+      '</button>' +
+      fieldExportBtn +
+      '</div>' +
+      '<div class="pine-report-field-group-body">' +
+      bodyInner +
+      '</div></section>'
     );
   }
 
@@ -1549,6 +2499,7 @@
       '<p class="pine-report-farmer">' +
       escapeHtml(owner) +
       '</p>' +
+      '<div class="pine-report-meta-row">' +
       '<div class="pine-report-stats">' +
       '<span class="pine-report-stat pine-report-stat--count"><strong>' +
       escapeHtml(String(d.count)) +
@@ -1557,7 +2508,7 @@
       '</div>' +
       '<div class="pine-report-actions">' +
       mapBtn +
-      '</div></div></div>' +
+      '</div></div></div></div>' +
       adviceBlock +
       '</article>'
     );
@@ -1570,36 +2521,13 @@
           escapeHtml(d.image_url) +
           '" target="_blank" rel="noopener">Open image</a>'
         : '';
-    const fieldOpts = cacheFields
-      .map(function (f) {
-        const sel = d.field_id === f.id ? ' selected' : '';
-        return (
-          '<option value="' +
-          escapeHtml(String(f.id)) +
-          '"' +
-          sel +
-          '>' +
-          escapeHtml(f.name || 'Field') +
-          '</option>'
-        );
-      })
-      .join('');
     const fieldName =
       d.field_id != null
         ? (cacheFields.find(function (f) {
             return f.id === d.field_id;
           }) || {}).name || '—'
         : '— none —';
-    const fieldBlock = sessionIsFullAdmin
-      ? 'Field<br><select class="pine-input pine-map-popup-select" data-map-det-field="' +
-        escapeHtml(String(d.id)) +
-        '"><option value="">— none —</option>' +
-        fieldOpts +
-        '</select>'
-      : 'Field: <strong>' + escapeHtml(fieldName) + '</strong>';
-    const autosaveHint = sessionIsFullAdmin
-      ? '<p class="pine-popup-autosave-hint">Location and field save automatically.</p>'
-      : '';
+    const fieldBlock = 'Field: <strong>' + escapeHtml(fieldName) + '</strong>';
     return (
       '<div class="pine-map-popup">' +
       '<strong>Capture</strong><br>Count: ' +
@@ -1615,7 +2543,6 @@
       '</span>' +
       img +
       buildExpertReplyHtml(d.id, d) +
-      autosaveHint +
       '<div class="pine-save-status" data-map-det-status="' +
       escapeHtml(String(d.id)) +
       '"></div></div>'
@@ -2053,24 +2980,18 @@
       const fieldName = (f && typeof f.name === 'string' && f.name.trim()) ? f.name.trim() : 'Field';
       const centroid = ringCentroidLatLng(rings);
       if (centroid && pineMap.fieldLabelLayer) {
-        const shouldShowHeatBadge = showFieldHeatmap && posCount > 0;
-        const shouldShowNameLabel = !showFieldHeatmap && posCount > 0;
-        if (shouldShowHeatBadge || shouldShowNameLabel) {
+        const shouldShowHeatBadge = !showCapturePins && posCount > 0;
+        if (shouldShowHeatBadge) {
           const sev = posCount / maxPosField;
           const lm = L.marker(centroid, {
-            icon: shouldShowHeatBadge
-                ? makeHeatFieldBadgeIcon(fieldName, posCount, sev)
-                : makeFieldLabelDivIcon(fieldName, {
-                    positiveCount: posCount,
-                    showCount: posCount > 0,
-                  }),
+            icon: makeHeatFieldBadgeIcon(fieldName, posCount, sev),
             interactive: true,
             keyboard: false,
-            zIndexOffset: shouldShowHeatBadge ? 700 : 650,
+            zIndexOffset: 700,
           });
           lm._pineFieldLabelAnchor = L.latLng(centroid.lat, centroid.lng);
           lm._pineFieldLabelText = fieldName;
-          lm._pineFieldLabelWide = shouldShowHeatBadge;
+          lm._pineFieldLabelWide = true;
           lm._pineFieldLabelAngle = fieldIdToLabelJitterAngle(fidStr);
           lm._pineFieldId = fidStr;
           lm.on('click', function (ev) {
@@ -2106,51 +3027,14 @@
       if (viewBounds && !viewBounds.contains([lat, lng])) continue;
       if (renderedDetIds.size >= MAP_VIEW_DETECTIONS_MAX) break;
       renderedDetIds.add(d.id);
-      const isSel = selectedDetIds.has(d.id);
       const mk = L.marker([lat, lng], {
-        draggable: sessionIsFullAdmin,
-        icon: makeCaptureIcon(isSel, d),
-        zIndexOffset: isSel ? 400 : 300,
+        draggable: false,
+        icon: makeCaptureIcon(false, d),
+        zIndexOffset: 300,
       });
       mk._pineDetId = d.id;
       mk._pineDet = d;
-      if (mapViewState.multiSelectMode) {
-        mk.on('click', function () {
-          toggleCaptureSelection(d.id, mk);
-        });
-      } else {
-        mk.on('click', function (e) {
-          const oe = e.originalEvent;
-          if (oe && oe.shiftKey) {
-            if (typeof oe.stopImmediatePropagation === 'function') {
-              oe.stopImmediatePropagation();
-            }
-            L.DomEvent.stopPropagation(e);
-            toggleCaptureSelection(d.id, mk);
-            requestAnimationFrame(function () {
-              mk.closePopup();
-            });
-          }
-        });
-        mk.bindPopup(buildCapturePopupHtml(d, lat, lng), { maxWidth: 300 });
-      }
-      mk.on('dragend', function () {
-        const ll = mk.getLatLng();
-        let fieldId = d.field_id;
-        const pu = mk.getPopup();
-        const popupEl = pu && pu.getElement();
-        if (popupEl) {
-          const sel = popupEl.querySelector('[data-map-det-field="' + d.id + '"]');
-          if (sel instanceof HTMLSelectElement) {
-            fieldId = sel.value.trim() || null;
-          }
-        }
-        const merged = Object.assign({}, d, { field_id: fieldId });
-        if (!mapViewState.multiSelectMode) {
-          mk.setPopupContent(buildCapturePopupHtml(merged, ll.lat, ll.lng));
-        }
-        schedulePersistCapture(d.id);
-      });
+      mk.bindPopup(buildCapturePopupHtml(d, lat, lng), { maxWidth: 300 });
       mk.addTo(pineMap.captureGroup);
       bounds.push([lat, lng]);
     }
@@ -4023,6 +4907,97 @@
     }
   }
 
+  function drawerDefaultWidth(section) {
+    if (section === 'captures') return 680;
+    if (section === 'analytics') return 560;
+    if (section === 'fields') return 500;
+    return 440;
+  }
+
+  function readDrawerWidth() {
+    try {
+      const n = parseInt(localStorage.getItem(DRAWER_WIDTH_KEY), 10);
+      if (!isNaN(n) && n >= DRAWER_WIDTH_MIN) return n;
+    } catch (_) {}
+    return null;
+  }
+
+  function clampDrawerWidth(px) {
+    const max = Math.floor(window.innerWidth * DRAWER_WIDTH_MAX_RATIO);
+    return Math.max(DRAWER_WIDTH_MIN, Math.min(px, max));
+  }
+
+  function applyDrawerWidth(section) {
+    if (!elDrawer) return;
+    const saved = readDrawerWidth();
+    const w = saved != null ? saved : drawerDefaultWidth(section || drawerSection || 'users');
+    elDrawer.style.setProperty('--pine-drawer-width', clampDrawerWidth(w) + 'px');
+  }
+
+  function saveDrawerWidth(px) {
+    try {
+      localStorage.setItem(DRAWER_WIDTH_KEY, String(Math.round(px)));
+    } catch (_) {}
+  }
+
+  function syncDrawerNavActive() {
+    document.querySelectorAll('[data-open-drawer]').forEach(function (btn) {
+      const s = btn.getAttribute('data-open-drawer');
+      btn.classList.toggle(
+        'is-active',
+        !!drawerSection && drawerSection === s && elDrawer && !elDrawer.hidden,
+      );
+    });
+  }
+
+  function initDrawerResize() {
+    const handle = $('drawer-resize');
+    if (!handle || !elDrawer) return;
+    let dragging = false;
+    let startX = 0;
+    let startW = 0;
+
+    handle.addEventListener('mousedown', function (ev) {
+      ev.preventDefault();
+      dragging = true;
+      startX = ev.clientX;
+      startW = elDrawer.getBoundingClientRect().width;
+      handle.classList.add('is-dragging');
+      document.body.classList.add('pine-drawer-resizing');
+    });
+
+    window.addEventListener('mousemove', function (ev) {
+      if (!dragging || !elDrawer) return;
+      const delta = startX - ev.clientX;
+      const next = clampDrawerWidth(startW + delta);
+      elDrawer.style.setProperty('--pine-drawer-width', next + 'px');
+    });
+
+    window.addEventListener('mouseup', function () {
+      if (!dragging || !elDrawer) return;
+      dragging = false;
+      handle.classList.remove('is-dragging');
+      document.body.classList.remove('pine-drawer-resizing');
+      saveDrawerWidth(elDrawer.getBoundingClientRect().width);
+      resizeAnalyticsCharts();
+    });
+
+    window.addEventListener('resize', function () {
+      if (!elDrawer || elDrawer.hidden) return;
+      const current = elDrawer.getBoundingClientRect().width;
+      elDrawer.style.setProperty('--pine-drawer-width', clampDrawerWidth(current) + 'px');
+      resizeAnalyticsCharts();
+    });
+
+    if (typeof ResizeObserver !== 'undefined' && elDrawer) {
+      const drawerResizeObserver = new ResizeObserver(function () {
+        if (elDrawer.hidden) return;
+        resizeAnalyticsCharts();
+      });
+      drawerResizeObserver.observe(elDrawer);
+    }
+  }
+
   function openDrawer(section) {
     if ((section === 'users' || section === 'fields') && !sessionIsFullAdmin) {
       toast('Users and Fields are limited to full admins.', true);
@@ -4033,11 +5008,17 @@
     drawerSection = section;
     if (!elDrawer || !elDrawerContent) return;
     elDrawer.hidden = false;
+    if (elDrawerBackdrop) {
+      elDrawerBackdrop.hidden = false;
+      elDrawerBackdrop.setAttribute('aria-hidden', 'false');
+    }
     elDrawer.classList.toggle(
       'pine-drawer--wide',
-      section === 'users' || section === 'fields' || section === 'analytics'
+      section === 'users' || section === 'fields' || section === 'analytics',
     );
     elDrawer.classList.toggle('pine-drawer--reports', section === 'captures');
+    applyDrawerWidth(section);
+    syncDrawerNavActive();
     if (elDrawerTitle) {
       elDrawerTitle.textContent =
         section === 'users'
@@ -4049,15 +5030,22 @@
               : 'Reports';
     }
     renderDrawer();
+    syncReportsExportHeaderButton();
   }
 
   function closeDrawer() {
     drawerSection = null;
+    syncReportsExportHeaderButton();
     if (elDrawer) {
       elDrawer.hidden = true;
       elDrawer.classList.remove('pine-drawer--wide');
       elDrawer.classList.remove('pine-drawer--reports');
     }
+    if (elDrawerBackdrop) {
+      elDrawerBackdrop.hidden = true;
+      elDrawerBackdrop.setAttribute('aria-hidden', 'true');
+    }
+    syncDrawerNavActive();
   }
 
   function renderDrawer() {
@@ -4131,7 +5119,7 @@
         '<div class="pine-drawer-form--full-row pine-drawer-form--actions">' +
         '<button type="submit" class="pine-btn pine-btn-primary">Create user</button>' +
         '<p id="new-user-status" class="pine-save-status"></p></div></form>' +
-        '<p class="pine-muted pine-drawer-fields-hint" style="margin-top:0.75rem"><strong>Save</strong> updates display name, <code>profiles</code> email, and <strong>Auth sign-in email</strong> (deploy <code>pine-admin-update-user-profile</code>). Email is only shown while <strong>Edit</strong> is active. You cannot change your own email here — use Supabase Dashboard → Authentication. <strong>Delete</strong> needs <code>pine-admin-delete-user</code>.</p>' +
+        '<p class="pine-muted pine-drawer-fields-hint pine-drawer-fields-hint--compact" style="margin-top:0.55rem"><strong>Save</strong> updates name and sign-in email · <strong>Edit</strong> to change email · <strong>Delete</strong> removes the account.</p>' +
         '<div class="pine-table-wrap pine-table-wrap--users-drawer" style="margin-top:0.5rem"><table class="pine-table pine-table--users-drawer"><thead><tr><th>Name</th><th class="pine-th-actions">Actions</th></tr></thead><tbody>' +
         (rows || '<tr><td colspan="2" class="pine-empty">No profiles</td></tr>') +
         '</tbody></table></div>';
@@ -4236,19 +5224,19 @@
             })
             .join('');
           const nameCell = isEditing
-            ? '<input type="text" class="pine-input pine-inline-input pine-field-edit-name" data-field-edit-name="' +
+            ? '<input type="text" class="pine-input pine-field-edit-input" data-field-edit-name="' +
               escapeHtml(fid) +
               '" value="' +
               escapeHtml(f.name || '') +
               '" />'
-            : escapeHtml(f.name || '');
+            : '<span class="pine-field-name-text">' + escapeHtml(f.name || '') + '</span>';
           const addrCell = isEditing
-            ? '<input type="text" class="pine-input pine-inline-input pine-inline-input-wide" data-field-edit-address="' +
+            ? '<input type="text" class="pine-input pine-field-edit-input" data-field-edit-address="' +
               escapeHtml(fid) +
               '" value="' +
               escapeHtml(addrRaw) +
               '" />'
-            : '<span title="' +
+            : '<span class="pine-field-address-text" title="' +
               addrTitle +
               '">' +
               addrShow +
@@ -4267,26 +5255,42 @@
               '<button type="button" class="pine-btn pine-btn-secondary pine-btn--sm" data-drawer-edit-field="' +
               escapeHtml(fid) +
               '">Edit</button>';
+          const deleteBtn = isEditing
+            ? ''
+            : '<button type="button" class="pine-btn pine-btn-secondary pine-btn--sm pine-btn-danger-text" data-drawer-delete-field="' +
+              escapeHtml(fid) +
+              '">Delete</button>';
           const actionCell =
             '<div class="pine-drawer-field-actions pine-drawer-field-actions--fields">' +
-            '<div class="pine-drawer-field-actions-row">' +
             mainActionBtns +
-            '</div><div class="pine-drawer-field-actions-row">' +
-            '<button type="button" class="pine-btn pine-btn-secondary pine-btn--sm pine-btn-danger-text" data-drawer-delete-field="' +
-            escapeHtml(fid) +
-            '">Delete</button></div></div>';
+            deleteBtn +
+            '</div>';
           return (
-            '<tr><td>' +
+            '<article class="pine-field-card" data-field-id="' +
+            escapeHtml(fid) +
+            '">' +
+            '<div class="pine-field-card-grid">' +
+            '<div class="pine-field-card-field pine-field-card-field--name">' +
+            '<span class="pine-field-card-label">Name</span>' +
+            '<div class="pine-field-card-value pine-field-card-value--name">' +
             nameCell +
-            '</td><td class="pine-fields-owner-cell"><select class="pine-input pine-inline-select" data-drawer-assign-field="' +
+            '</div></div>' +
+            '<div class="pine-field-card-field pine-field-card-field--owner">' +
+            '<span class="pine-field-card-label">Owner</span>' +
+            '<div class="pine-field-card-value">' +
+            '<select class="pine-input pine-field-select" data-drawer-assign-field="' +
             escapeHtml(fid) +
             '">' +
             opts +
-            '</select></td><td class="pine-fields-address-cell">' +
+            '</select></div></div>' +
+            '<div class="pine-field-card-field pine-field-card-field--address">' +
+            '<span class="pine-field-card-label">Address</span>' +
+            '<div class="pine-field-card-value pine-field-card-value--address">' +
             addrCell +
-            '</td><td class="pine-drawer-field-actions-cell">' +
+            '</div></div>' +
+            '<div class="pine-field-card-actions">' +
             actionCell +
-            '</td></tr>'
+            '</div></div></article>'
           );
         })
         .join('');
@@ -4300,14 +5304,18 @@
         '<div class="pine-field"><label class="pine-label">Address</label><input class="pine-input" name="address" /></div>' +
         '<button type="submit" class="pine-btn pine-btn-primary">Create field</button>' +
         '<p id="new-field-status" class="pine-save-status"></p></form>' +
-        '<p class="pine-muted pine-drawer-fields-hint" style="margin-top:0.35rem">After creating, use <strong>Boundary</strong> in the list to add or edit the map geofence.</p>' +
+        '<p class="pine-muted pine-drawer-fields-hint pine-drawer-fields-hint--compact">After creating, use <strong>Boundary</strong> on a row to draw the geofence on the map.</p>' +
         '<h3 class="pine-drawer-h3">All fields</h3>' +
-        '<p class="pine-muted pine-drawer-fields-hint">Use <strong>Edit</strong> for name and address. <strong>Boundary</strong> focuses the map and lets you drag geofence vertices (starter triangle if the field has none). Owner: dropdown.</p>' +
-        '<div class="pine-table-wrap"><table class="pine-table pine-table--fields-drawer"><thead><tr><th>Name</th><th>Owner</th><th>Address</th><th class="pine-th-actions">Actions</th></tr></thead><tbody>' +
-        (tableRows || '<tr><td colspan="4" class="pine-empty">No fields</td></tr>') +
-        '</tbody></table></div>' +
-        '<h3 class="pine-drawer-h3" style="margin-top:1rem">DA farm insight</h3>' +
-        '<p class="pine-muted pine-drawer-fields-hint">Universal guidance for a farm (visible to the field owner in a future app update; stored for DA records).</p>' +
+        '<p class="pine-muted pine-drawer-fields-hint pine-drawer-fields-hint--compact"><strong>Edit</strong> name/address · <strong>Boundary</strong> on map · Owner dropdown.</p>' +
+        '<div class="pine-fields-list-shell">' +
+        '<div class="pine-fields-list-head" aria-hidden="true">' +
+        '<span>Name</span><span>Owner</span><span>Address</span><span>Actions</span>' +
+        '</div>' +
+        '<div class="pine-fields-list">' +
+        (tableRows || '<div class="pine-empty pine-empty--fields">No fields</div>') +
+        '</div></div>' +
+        '<h3 class="pine-drawer-h3" style="margin-top:1rem">' + STAFF_ROLE + ' farm insight</h3>' +
+        '<p class="pine-muted pine-drawer-fields-hint">Universal guidance for a farm (visible to the field owner in a future app update; stored for agriculturist records).</p>' +
         '<div class="pine-field"><label class="pine-label" for="pine-farm-insight-field">Field</label><select class="pine-input" id="pine-farm-insight-field">' +
         cacheFields
           .map(function (f) {
@@ -4396,11 +5404,22 @@
     }
 
     if (drawerSection === 'captures') {
+      const reviewedExportCount = countReviewedForExport();
       if (cacheDetections.length === 0) {
-        elDrawerContent.innerHTML = '<div class="pine-empty">No reports loaded.</div>';
+        elDrawerContent.innerHTML =
+          '<div class="pine-reports-header">' +
+          '<p class="pine-reports-lead">Review farmer submissions by field. Expand a field to open captures and write <strong>' +
+          STAFF_ROLE_WITH_OMAG +
+          ' advice</strong> per positive sighting.</p>' +
+          reportsExportRowHtml(reviewedExportCount) +
+          '</div>' +
+          '<div class="pine-empty">No reports loaded.</div>';
+        syncReportsExportHeaderButton();
         return;
       }
       const filtered = capturesForDrawer();
+      const fieldGroups = groupDetectionsByField(filtered);
+      lastReportFieldGroups = fieldGroups;
       const pendingCount = cacheDetections.filter(function (d) {
         return detectionIsPositive(d) && !reportHasExpertReply(d.id);
       }).length;
@@ -4418,31 +5437,40 @@
         );
       };
       const cards =
-        filtered.length === 0
+        fieldGroups.length === 0
           ? '<div class="pine-empty pine-empty--reports">No reports match this filter.</div>'
-          : filtered.map(buildReportCardHtml).join('');
+          : fieldGroups.map(buildReportFieldGroupHtml).join('');
       elDrawerContent.innerHTML =
         '<div class="pine-reports-header">' +
-        '<p class="pine-reports-lead">Review farmer submissions, open captures, and write <strong>DA/OMAG advice</strong> per positive sighting.</p>' +
+        '<p class="pine-reports-lead">Review farmer submissions by field. Expand a field to open captures and write <strong>' +
+        STAFF_ROLE_WITH_OMAG +
+        ' advice</strong> per positive sighting.</p>' +
         '<div class="pine-reports-summary">' +
         '<div class="pine-reports-summary-item"><span class="pine-reports-summary-num">' +
+        String(fieldGroups.length) +
+        '</span><span class="pine-reports-summary-label">Fields</span></div>' +
+        '<div class="pine-reports-summary-item"><span class="pine-reports-summary-num">' +
         String(filtered.length) +
-        '</span><span class="pine-reports-summary-label">Showing</span></div>' +
+        '</span><span class="pine-reports-summary-label">Captures</span></div>' +
         '<div class="pine-reports-summary-item"><span class="pine-reports-summary-num">' +
         String(positiveCount) +
         '</span><span class="pine-reports-summary-label">Positive</span></div>' +
         '<div class="pine-reports-summary-item pine-reports-summary-item--warn"><span class="pine-reports-summary-num">' +
         String(pendingCount) +
         '</span><span class="pine-reports-summary-label">Pending reply</span></div>' +
-        '</div></div>' +
+        '</div>' +
+        reportsExportRowHtml(reviewedExportCount) +
+        '</div>' +
         '<div class="pine-captures-filter-row pine-report-filters">' +
         filterBtn('all', 'All') +
         filterBtn('positive', 'Positive only') +
+        filterBtn('negative', 'Negative only') +
         filterBtn('pending', 'Pending reply') +
         '</div>' +
         '<div class="pine-reports-list">' +
         cards +
         '</div>';
+      syncReportsExportHeaderButton();
       return;
     }
 
@@ -4488,59 +5516,83 @@
         .sort(function (a, b) {
           return b.count - a.count;
         })
-        .slice(0, 10);
+        .slice(0, 5);
       const topRows = topFarms
         .map(function (row) {
           return (
-            '<tr><td>' +
+            '<article class="pine-analytics-farm-row" title="' +
             escapeHtml(row.name) +
-            '</td><td>' +
+            '">' +
+            '<span class="pine-analytics-farm-name">' +
+            escapeHtml(row.name) +
+            '</span>' +
+            '<span class="pine-analytics-farm-owner">' +
             escapeHtml(row.owner) +
-            '</td><td><strong>' +
+            '</span>' +
+            '<span class="pine-analytics-farm-count">' +
             String(row.count) +
-            '</strong></td><td>' +
-            escapeHtml(formatReportDate(row.last)) +
-            '</td><td><button type="button" class="pine-btn pine-btn-secondary pine-btn--sm" data-analytics-map-field="' +
+            '</span>' +
+            '<span class="pine-analytics-farm-last">' +
+            escapeHtml(formatReportDateShort(row.last)) +
+            '</span>' +
+            '<button type="button" class="pine-btn pine-btn-secondary pine-btn--sm pine-analytics-farm-map-btn" data-analytics-map-field="' +
             escapeHtml(row.fid) +
-            '">View on map</button></td></tr>'
+            '" title="View on map">Map</button>' +
+            '</article>'
           );
         })
         .join('');
       elDrawerContent.innerHTML =
+        '<div class="pine-analytics-panel">' +
         '<div class="pine-analytics-grid">' +
         '<div class="pine-analytics-stat"><strong>' +
         String(pos.length) +
-        '</strong><span>Positive reports</span></div>' +
+        '</strong><span>Positive</span></div>' +
         '<div class="pine-analytics-stat"><strong>' +
         String(negCount) +
-        '</strong><span>Negative scans</span></div>' +
+        '</strong><span>Negative</span></div>' +
         '<div class="pine-analytics-stat"><strong>' +
         String(pos7) +
-        '</strong><span>Positive (7 days)</span></div>' +
+        '</strong><span>7 days</span></div>' +
         '<div class="pine-analytics-stat"><strong>' +
         String(pos30) +
-        '</strong><span>Positive (30 days)</span></div>' +
+        '</strong><span>30 days</span></div>' +
         '</div>' +
-        '<h3 class="pine-drawer-subtitle">Report mix</h3>' +
-        '<div class="pine-analytics-charts">' +
-        '<div class="pine-analytics-chart-card">' +
+        '<h3 class="pine-drawer-subtitle pine-drawer-subtitle--tight">Report mix</h3>' +
+        '<div class="pine-analytics-charts pine-analytics-charts--stacked">' +
+        '<div class="pine-analytics-chart-card pine-analytics-chart-card--wide pine-analytics-chart-card--trend">' +
+        '<div class="pine-analytics-chart-head">' +
+        '<p class="pine-analytics-chart-label">Positive trend <span class="pine-analytics-viz-tag">Line</span></p>' +
+        '<div class="pine-analytics-trend-range" role="group" aria-label="Trend range">' +
+        analyticsTrendRangeBtnHtml('7d', '7D') +
+        analyticsTrendRangeBtnHtml('30d', '1M') +
+        analyticsTrendRangeBtnHtml('1y', '1Y') +
+        '</div></div>' +
+        '<div class="pine-analytics-trend-canvas-wrap">' +
+        '<canvas id="pine-analytics-trend"></canvas>' +
+        '</div></div>' +
+        '<div class="pine-analytics-mix-row">' +
+        '<div class="pine-analytics-chart-card pine-analytics-chart-card--donut">' +
         '<p class="pine-analytics-chart-label">Positive vs negative <span class="pine-analytics-viz-tag">Donut</span></p>' +
-        '<canvas id="pine-analytics-donut" height="140"></canvas>' +
+        '<div class="pine-analytics-donut-body">' +
+        '<div class="pine-analytics-donut-wrap">' +
+        '<canvas id="pine-analytics-donut"></canvas>' +
+        '</div></div></div>' +
+        '<div class="pine-analytics-chart-card pine-analytics-chart-card--bar">' +
+        '<p class="pine-analytics-chart-label">Top 5 farms <span class="pine-analytics-viz-tag">Bar</span></p>' +
+        '<div class="pine-analytics-bar-canvas-wrap">' +
+        '<canvas id="pine-analytics-farms-bar"></canvas>' +
+        '</div></div>' +
         '</div>' +
-        '<div class="pine-analytics-chart-card">' +
-        '<p class="pine-analytics-chart-label">30-day positive trend <span class="pine-analytics-viz-tag">Line</span></p>' +
-        '<canvas id="pine-analytics-trend" height="140"></canvas>' +
         '</div>' +
-        '<div class="pine-analytics-chart-card pine-analytics-chart-card--wide">' +
-        '<p class="pine-analytics-chart-label">Top farms <span class="pine-analytics-viz-tag">Bar</span></p>' +
-        '<canvas id="pine-analytics-farms-bar" height="160"></canvas>' +
+        '<h3 class="pine-drawer-subtitle pine-drawer-subtitle--tight">Top 5 farms</h3>' +
+        '<div class="pine-analytics-farms-shell">' +
+        '<div class="pine-analytics-farms-head" aria-hidden="true">' +
+        '<span>Field</span><span>Owner</span><span>#</span><span>Last</span><span></span>' +
         '</div>' +
-        '</div>' +
-        '<p class="pine-analytics-viz-note">Map uses <strong>choropleth heatmap</strong> + <strong>dot map</strong> (Location). Charts follow Data-to-Viz families — see <code>docs/thesis/ADMIN_UI_REDESIGN.md</code>.</p>' +
-        '<h3 class="pine-drawer-subtitle" style="margin-top:1rem">Top farms (table)</h3>' +
-        '<div class="pine-table-wrap"><table class="pine-table"><thead><tr><th>Field</th><th>Owner</th><th>Positive</th><th>Last sighting</th><th></th></tr></thead><tbody>' +
-        (topRows || '<tr><td colspan="5" class="pine-muted">No positive reports yet.</td></tr>') +
-        '</tbody></table></div>';
+        '<div class="pine-analytics-farms-list">' +
+        (topRows || '<div class="pine-empty pine-empty--fields">No positive reports yet.</div>') +
+        '</div></div></div>';
       if (typeof Chart !== 'undefined') {
         destroyAnalyticsCharts();
         const olive = 'rgba(118, 148, 76, 0.85)';
@@ -4564,63 +5616,22 @@
               },
               options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 plugins: {
-                  legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } },
-                },
-              },
-            }),
-          );
-        }
-
-        const trendLabels = [];
-        const trendValues = [];
-        for (let di = 29; di >= 0; di--) {
-          const dayStart = new Date(now - di * dayMs);
-          dayStart.setHours(0, 0, 0, 0);
-          const dayEnd = dayStart.getTime() + dayMs;
-          trendLabels.push(
-            di % 5 === 0 ? formatReportDate(dayStart.toISOString()).split(',')[0] : '',
-          );
-          let c = 0;
-          for (let pi = 0; pi < pos.length; pi++) {
-            const t = pos[pi].created_at ? new Date(pos[pi].created_at).getTime() : 0;
-            if (t >= dayStart.getTime() && t < dayEnd) c += 1;
-          }
-          trendValues.push(c);
-        }
-        const trendCanvas = document.getElementById('pine-analytics-trend');
-        if (trendCanvas) {
-          analyticsChartInstances.push(
-            new Chart(trendCanvas, {
-              type: 'line',
-              data: {
-                labels: trendLabels,
-                datasets: [
-                  {
-                    label: 'Positive reports',
-                    data: trendValues,
-                    borderColor: olive,
-                    backgroundColor: oliveSoft,
-                    fill: true,
-                    tension: 0.3,
-                    pointRadius: 0,
-                    pointHitRadius: 8,
+                  legend: {
+                    position: 'bottom',
+                    align: 'start',
+                    labels: { boxWidth: 8, font: { size: 9 }, padding: 6 },
                   },
-                ],
-              },
-              options: {
-                responsive: true,
-                plugins: { legend: { display: false } },
-                scales: {
-                  x: { ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 8 } },
-                  y: { beginAtZero: true, ticks: { precision: 0 } },
                 },
               },
             }),
           );
         }
 
-        const barFarms = topFarms.slice(0, 8);
+        mountAnalyticsTrendChart(pos);
+
+        const barFarms = topFarms.slice(0, 5);
         const farmsBarCanvas = document.getElementById('pine-analytics-farms-bar');
         if (farmsBarCanvas && barFarms.length > 0) {
           analyticsChartInstances.push(
@@ -4643,15 +5654,25 @@
               options: {
                 indexAxis: 'y',
                 responsive: true,
+                maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
+                layout: { padding: { right: 6, left: 2 } },
                 scales: {
-                  x: { beginAtZero: true, ticks: { precision: 0 } },
-                  y: { ticks: { font: { size: 11 } } },
+                  x: {
+                    beginAtZero: true,
+                    ticks: { precision: 0, maxTicksLimit: 5, font: { size: 10 } },
+                    grid: { display: true, color: 'rgba(46, 49, 65, 0.06)' },
+                  },
+                  y: {
+                    ticks: { font: { size: 10 }, autoSkip: false },
+                    grid: { display: false },
+                  },
                 },
               },
             }),
           );
         }
+        requestAnimationFrame(resizeAnalyticsCharts);
       }
     }
   }
@@ -4670,6 +5691,44 @@
       return;
     }
 
+    const exportAllBtn = t.closest('[data-export-reviewed]');
+    if (exportAllBtn) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      await exportReviewedImagesCsvZip();
+      return;
+    }
+
+    const exportFieldBtn = t.closest('[data-export-reviewed-field]');
+    if (exportFieldBtn) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const fid = exportFieldBtn.getAttribute('data-export-reviewed-field');
+      if (fid) {
+        await exportReviewedImagesCsvZip(fid);
+      }
+      return;
+    }
+
+    const fieldToggle = t.closest('[data-report-field-toggle]');
+    if (fieldToggle) {
+      const key = fieldToggle.getAttribute('data-report-field-toggle');
+      if (key) {
+        const opening = !openReportFieldGroups[key];
+        openReportFieldGroups[key] = opening;
+        if (
+          opening &&
+          !reportsFieldDetectionsCache[key] &&
+          !reportsFieldLoading[key]
+        ) {
+          void loadFieldDetectionsForGroup(key);
+        } else {
+          renderDrawer();
+        }
+      }
+      return;
+    }
+
     const replySave = t.closest('[data-expert-reply-save]');
     if (replySave) {
       const detId = replySave.getAttribute('data-expert-reply-save');
@@ -4680,6 +5739,23 @@
         const text = textEl instanceof HTMLTextAreaElement ? textEl.value : '';
         const act = actEl instanceof HTMLSelectElement ? actEl.value : '';
         await saveExpertResponse(detId, text, act, st);
+      }
+      return;
+    }
+
+    const trendRangeBtn = t.closest('[data-analytics-trend-range]');
+    if (trendRangeBtn) {
+      const key = trendRangeBtn.getAttribute('data-analytics-trend-range');
+      if (key && (key === '7d' || key === '30d' || key === '1y') && key !== analyticsTrendRange) {
+        analyticsTrendRange = key;
+        mountAnalyticsTrendChart(positiveDetections(cacheDetections));
+        elDrawerContent.querySelectorAll('[data-analytics-trend-range]').forEach(function (btn) {
+          if (!(btn instanceof HTMLElement)) return;
+          btn.classList.toggle(
+            'is-active',
+            btn.getAttribute('data-analytics-trend-range') === analyticsTrendRange,
+          );
+        });
       }
       return;
     }
@@ -4726,10 +5802,15 @@
     const saveF = t.closest('[data-drawer-save-field]');
     if (saveF) {
       const fid = saveF.getAttribute('data-drawer-save-field');
-      const row = saveF.closest('tr');
-      if (!fid || !row) return;
-      const nameIn = row.querySelector('[data-field-edit-name="' + fid + '"]');
-      const addrIn = row.querySelector('[data-field-edit-address="' + fid + '"]');
+      if (!fid) return;
+      const card = saveF.closest('.pine-field-card');
+      const scope = card instanceof HTMLElement ? card : elDrawerContent;
+      const nameIn = scope
+        ? scope.querySelector('[data-field-edit-name="' + fid + '"]')
+        : null;
+      const addrIn = scope
+        ? scope.querySelector('[data-field-edit-address="' + fid + '"]')
+        : null;
       if (!(nameIn instanceof HTMLInputElement) || !(addrIn instanceof HTMLInputElement)) return;
       const name = nameIn.value.trim();
       if (!name) {
@@ -4893,13 +5974,17 @@
       const prof = cacheDaRequests.find(function (x) {
         return String(x.id) === rid;
       });
-      const uid = prof ? prof.user_id : null;
-      const label = uid ? profileDisplayName(uid) : 'this user';
+      const label = prof ? daRequestApplicantName(prof) : 'this user';
+      const org = prof ? daRequestOrganization(prof) : 'their organization';
       if (
         !confirm(
-          'Approve DA access for ' +
+          'Approve ' +
+            STAFF_ROLE +
+            ' access for ' +
             label +
-            '?\n\nThey will need to sign out and sign in again on mobile and web.'
+            ' (' +
+            org +
+            ')?\n\nThey will need to sign out and sign in again on mobile and web.'
         )
       ) {
         return;
@@ -4914,7 +5999,7 @@
     if (daReject) {
       const rid = daReject.getAttribute('data-da-request-reject');
       if (!rid) return;
-      if (!confirm('Reject this DA access request?')) {
+      if (!confirm('Reject this ' + STAFF_ROLE + ' access request?')) {
         return;
       }
       daReject.disabled = true;
@@ -5134,7 +6219,7 @@
         supabase.from('farm_insights').select('*').order('created_at', { ascending: false }),
         sessionIsFullAdmin
           ? supabase
-              .from('da_access_requests')
+              .from('access_request')
               .select('*')
               .order('created_at', { ascending: false })
           : Promise.resolve({ data: [], error: null }),
@@ -5160,6 +6245,9 @@
       cacheFarmInsights = farmInsightRes.error ? [] : farmInsightRes.data || [];
       cacheDaRequests = daReqRes.error ? [] : daReqRes.data || [];
 
+      syncDaPendingBadge();
+      maybeShowDaAccessNotifications();
+
       elStatAccounts.textContent = String(cacheProfiles.length);
       elStatFields.textContent = String(cacheFields.length);
       const posCount = positiveDetections(cacheDetections).length;
@@ -5175,6 +6263,7 @@
       if (drawerSection) {
         renderDrawer();
       }
+      subscribeDashboardRealtime();
     } catch (e) {
       console.error(e);
       if (elDashError) {
@@ -5194,6 +6283,7 @@
     let user = session && session.user ? session.user : null;
 
     if (!user) {
+      unsubscribeDashboardRealtime();
       if (elSignedInLabel) {
         elSignedInLabel.textContent = '';
         elSignedInLabel.title = '';
@@ -5228,6 +6318,7 @@
     }
 
     if (!isStaffUser(user)) {
+      unsubscribeDashboardRealtime();
       if (elNotAdminEmail) {
         elNotAdminEmail.textContent = label || 'this account';
       }
@@ -5253,17 +6344,58 @@
   if (drawerClose) {
     drawerClose.addEventListener('click', closeDrawer);
   }
+  if (elDrawerExportReviewed) {
+    elDrawerExportReviewed.addEventListener('click', function () {
+      void exportReviewedImagesCsvZip();
+    });
+  }
+  if (elDrawerBackdrop) {
+    elDrawerBackdrop.addEventListener('click', closeDrawer);
+  }
+  initDrawerResize();
 
   if (elSignOutBtn) {
     elSignOutBtn.addEventListener('click', async function () {
+      unsubscribeDashboardRealtime();
       await supabase.auth.signOut();
       await refreshSessionUi();
     });
   }
   if (elNotAdminSignOut) {
     elNotAdminSignOut.addEventListener('click', async function () {
+      unsubscribeDashboardRealtime();
       await supabase.auth.signOut();
       await refreshSessionUi();
+    });
+  }
+
+  const daNotifyModal = $('pine-da-notify');
+  const daNotifyDismiss = $('pine-da-notify-dismiss');
+  const daNotifyReview = $('pine-da-notify-review');
+  const daNotifyBackdrop = $('pine-da-notify-backdrop');
+
+  function dismissDaNotifyModal(openUsers) {
+    if (daNotifyModal && daNotifyModal._pendingNotifyIds) {
+      markDaNotifySeen(daNotifyModal._pendingNotifyIds);
+      daNotifyModal._pendingNotifyIds = null;
+    }
+    hideDaNotifyModal();
+    if (openUsers) openDrawer('users');
+  }
+
+  if (daNotifyDismiss) {
+    daNotifyDismiss.addEventListener('click', function () {
+      dismissDaNotifyModal(false);
+    });
+  }
+  if (daNotifyBackdrop) {
+    daNotifyBackdrop.addEventListener('click', function () {
+      dismissDaNotifyModal(false);
+    });
+  }
+  if (daNotifyReview) {
+    daNotifyReview.addEventListener('click', function () {
+      dismissDaNotifyModal(true);
     });
   }
 

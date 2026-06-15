@@ -29,6 +29,8 @@ This is the **one** project changelog-style document. **If you are updating a pa
 
 **Supplement (10 June 2026):** **`docs/work_logs/June 10 work log.md`** — V18 Phase 0 on Vast H100; **`v20s`** training started (audited `mealybug_v20` labels, from-scratch YOLO26s); project disk cleanup **124→39 GB** (`scripts/slim_project_retention.ps1`); **`docs/thesis/SYSTEM_ARCHITECTURE.md`**; confusion export + CVAT queues.
 
+**Supplement (13 June 2026):** **`docs/work_logs/June 13 work log.md`** — farmer Diagnose pest chart (Y-axis, local-first stats, smooth line); mobile/web pending reports limit parity (**2500**); farmer reports **grouped by field** (mobile + web); multi-user perf (web Realtime + lazy field load, mobile SWR badges); `expert_responses` Realtime migration; **`docs/diagrams/PINYA_PIC_ALL_DIAGRAMS.md`** combined shareable diagram pack.
+
 ---
 
 ## Handoff for another agent — updating the paper / manuscript

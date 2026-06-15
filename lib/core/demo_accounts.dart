@@ -1,4 +1,4 @@
-/// Demo / smoke-test account presets (emails only — no passwords in repo).
+/// Demo / smoke-test role presets (no hardcoded credentials — saved on device).
 library;
 
 import 'package:flutter/foundation.dart';
@@ -6,32 +6,18 @@ import 'package:flutter/foundation.dart';
 class DemoAccountPreset {
   const DemoAccountPreset({
     required this.label,
-    required this.email,
     required this.roleKey,
   });
 
   final String label;
-  final String email;
   /// `farmer` | `da` | `admin`
   final String roleKey;
 }
 
 const List<DemoAccountPreset> kDemoAccountPresets = <DemoAccountPreset>[
-  DemoAccountPreset(
-    label: 'Farmer',
-    email: 'morillo3580225@gmail.com',
-    roleKey: 'farmer',
-  ),
-  DemoAccountPreset(
-    label: 'DA',
-    email: 'rgist45@gmail.com',
-    roleKey: 'da',
-  ),
-  DemoAccountPreset(
-    label: 'Admin',
-    email: 'morgajanrafael1793@gmail.com',
-    roleKey: 'admin',
-  ),
+  DemoAccountPreset(label: 'Farmer', roleKey: 'farmer'),
+  DemoAccountPreset(label: 'Agriculturist', roleKey: 'da'),
+  DemoAccountPreset(label: 'Admin', roleKey: 'admin'),
 ];
 
 /// Debug builds, or pass `--dart-define=ENABLE_DEMO_ACCOUNT_SWITCHER=true`.
@@ -43,29 +29,36 @@ bool demoAccountSwitcherEnabled() {
   );
 }
 
-/// Optional shared password for all demo accounts:
-/// `--dart-define=DEMO_SWITCH_PASSWORD=your_password`
-String demoSwitchPasswordFromEnv() {
-  return const String.fromEnvironment('DEMO_SWITCH_PASSWORD', defaultValue: '');
-}
-
-DemoAccountPreset? demoPresetForEmail(String? email) {
-  final String normalized = (email ?? '').trim().toLowerCase();
-  if (normalized.isEmpty) return null;
-  for (final DemoAccountPreset p in kDemoAccountPresets) {
-    if (p.email.toLowerCase() == normalized) return p;
-  }
-  return null;
-}
-
 String demoRoleLabelForCurrentUser({
-  required String? email,
   required bool isFullAdmin,
   required bool isDa,
 }) {
-  final DemoAccountPreset? preset = demoPresetForEmail(email);
-  if (preset != null) return preset.label;
   if (isFullAdmin) return 'Admin';
-  if (isDa) return 'DA';
+  if (isDa) return 'Agriculturist';
   return 'Farmer';
+}
+
+bool demoRoleChipSelected({
+  required String roleKey,
+  required bool isFullAdmin,
+  required bool isDa,
+}) {
+  switch (roleKey) {
+    case 'admin':
+      return isFullAdmin;
+    case 'da':
+      return isDa && !isFullAdmin;
+    case 'farmer':
+      return !isFullAdmin && !isDa;
+    default:
+      return false;
+  }
+}
+
+String demoEmailHint(String email) {
+  final String trimmed = email.trim();
+  if (trimmed.length <= 22) return trimmed;
+  final int at = trimmed.indexOf('@');
+  if (at <= 1) return '${trimmed.substring(0, 18)}…';
+  return '${trimmed.substring(0, at.clamp(0, 12))}…${trimmed.substring(at)}';
 }

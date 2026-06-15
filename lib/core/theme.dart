@@ -29,6 +29,17 @@ class AppTheme {
   static const Color surfaceWhite = Color(0xFFFFFFFF);
   static const Color textDark = textHeading;
   static const Color textMedium = textBody;
+
+  /// Use instead of [textDark] / [textMedium] when the widget must read well in dark mode.
+  static Color adaptiveTextDark(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? Colors.white : textDark;
+
+  static Color adaptiveTextMedium(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? Colors.white : textMedium;
+
+  static Color adaptiveTextSubtle(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark ? Colors.white : textSubtle;
+
   static const Color errorRed = Color(0xFFD32F2F);
 
   /// Brighter primary on dark backgrounds (nav, headers).
@@ -36,8 +47,8 @@ class AppTheme {
 
   static const Color _darkSurface = navy;
   static const Color _darkSurfaceContainer = Color(0xFF3A3E52);
-  static const Color _darkOnSurface = Color(0xFFEAE6DE);
-  static const Color _darkOnSurfaceVariant = Color(0xFFC8C2BC);
+  static const Color _darkOnSurface = Colors.white;
+  static const Color _darkOnSurfaceVariant = Colors.white;
 
   static ThemeData get lightTheme => ThemeData(
         useMaterial3: true,
@@ -226,21 +237,44 @@ class AppTheme {
         ),
       );
 
+  static TextTheme get _darkTextTheme => const TextTheme(
+        displayLarge: TextStyle(color: Colors.white),
+        displayMedium: TextStyle(color: Colors.white),
+        displaySmall: TextStyle(color: Colors.white),
+        headlineLarge: TextStyle(color: Colors.white),
+        headlineMedium: TextStyle(color: Colors.white),
+        headlineSmall: TextStyle(color: Colors.white),
+        titleLarge: TextStyle(color: Colors.white),
+        titleMedium: TextStyle(color: Colors.white),
+        titleSmall: TextStyle(color: Colors.white),
+        bodyLarge: TextStyle(color: Colors.white),
+        bodyMedium: TextStyle(color: Colors.white),
+        bodySmall: TextStyle(color: Colors.white),
+        labelLarge: TextStyle(color: Colors.white),
+        labelMedium: TextStyle(color: Colors.white),
+        labelSmall: TextStyle(color: Colors.white),
+      );
+
   static ThemeData get darkTheme => ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
         scaffoldBackgroundColor: _darkSurface,
+        textTheme: _darkTextTheme,
+        primaryTextTheme: _darkTextTheme,
+        iconTheme: const IconThemeData(color: Colors.white),
         colorScheme: ColorScheme.dark(
           primary: darkModePrimaryGreen,
           onPrimary: navy,
           primaryContainer: olive.withValues(alpha: 0.45),
-          onPrimaryContainer: _darkOnSurface,
+          onPrimaryContainer: Colors.white,
           secondary: accentYellow,
           onSecondary: navy,
           secondaryContainer: const Color(0xFF5C5538),
-          onSecondaryContainer: _darkOnSurface,
+          onSecondaryContainer: Colors.white,
           tertiary: taupe,
-          onTertiary: navy,
+          onTertiary: Colors.white,
+          tertiaryContainer: _darkSurfaceContainer,
+          onTertiaryContainer: Colors.white,
           surface: _darkSurface,
           onSurface: _darkOnSurface,
           onSurfaceVariant: _darkOnSurfaceVariant,
@@ -252,7 +286,7 @@ class AppTheme {
         ),
         appBarTheme: const AppBarTheme(
           backgroundColor: _darkSurfaceContainer,
-          foregroundColor: _darkOnSurface,
+          foregroundColor: Colors.white,
           elevation: 0,
           centerTitle: true,
         ),
@@ -263,6 +297,56 @@ class AppTheme {
             borderRadius: BorderRadius.circular(12),
           ),
           clipBehavior: Clip.antiAlias,
+        ),
+        dividerTheme: DividerThemeData(
+          color: Colors.white.withValues(alpha: 0.18),
+          thickness: 1,
+        ),
+        listTileTheme: const ListTileThemeData(
+          iconColor: darkModePrimaryGreen,
+          textColor: Colors.white,
+          titleTextStyle: TextStyle(color: Colors.white, fontSize: 16),
+          subtitleTextStyle: TextStyle(color: Colors.white, fontSize: 14),
+        ),
+        chipTheme: ChipThemeData(
+          backgroundColor: _darkSurfaceContainer,
+          disabledColor: taupe.withValues(alpha: 0.35),
+          selectedColor: olive.withValues(alpha: 0.55),
+          secondarySelectedColor: accentYellow.withValues(alpha: 0.35),
+          labelStyle: const TextStyle(color: Colors.white, fontSize: 13),
+          secondaryLabelStyle: const TextStyle(color: Colors.white, fontSize: 13),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: BorderSide(color: Colors.white.withValues(alpha: 0.22)),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          filled: true,
+          fillColor: _darkSurfaceContainer,
+          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.75)),
+          labelStyle: const TextStyle(color: Colors.white),
+        ),
+        snackBarTheme: SnackBarThemeData(
+          backgroundColor: _darkSurfaceContainer,
+          contentTextStyle: const TextStyle(color: Colors.white),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        dialogTheme: DialogThemeData(
+          backgroundColor: _darkSurfaceContainer,
+          titleTextStyle: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700),
+          contentTextStyle: const TextStyle(color: Colors.white, fontSize: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
+        bottomSheetTheme: const BottomSheetThemeData(
+          backgroundColor: _darkSurfaceContainer,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
@@ -304,13 +388,6 @@ class AppTheme {
             ),
           ),
         ),
-        inputDecorationTheme: InputDecorationTheme(
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          filled: true,
-          fillColor: _darkSurfaceContainer,
-        ),
         floatingActionButtonTheme: const FloatingActionButtonThemeData(
           backgroundColor: darkModePrimaryGreen,
           foregroundColor: navy,
@@ -318,6 +395,27 @@ class AppTheme {
         ),
         progressIndicatorTheme: const ProgressIndicatorThemeData(
           color: darkModePrimaryGreen,
+        ),
+        switchTheme: SwitchThemeData(
+          thumbColor: WidgetStateProperty.resolveWith((Set<WidgetState> s) {
+            if (s.contains(WidgetState.selected)) return darkModePrimaryGreen;
+            return taupe;
+          }),
+          trackColor: WidgetStateProperty.resolveWith((Set<WidgetState> s) {
+            if (s.contains(WidgetState.selected)) {
+              return olive.withValues(alpha: 0.65);
+            }
+            return Colors.white.withValues(alpha: 0.22);
+          }),
+        ),
+        checkboxTheme: CheckboxThemeData(
+          fillColor: WidgetStateProperty.resolveWith((Set<WidgetState> s) {
+            if (s.contains(WidgetState.selected)) return darkModePrimaryGreen;
+            return null;
+          }),
+          checkColor: WidgetStateProperty.all(navy),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.55), width: 1.5),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
         ),
       );
 
@@ -353,17 +451,17 @@ class AppTheme {
 extension PineScreenColors on BuildContext {
   Color get pineTextPrimary =>
       Theme.of(this).brightness == Brightness.dark
-          ? AppTheme._darkOnSurface
+          ? Colors.white
           : AppTheme.textHeading;
 
   Color get pineTextSecondary =>
       Theme.of(this).brightness == Brightness.dark
-          ? AppTheme._darkOnSurfaceVariant
+          ? Colors.white
           : AppTheme.textBody;
 
   Color get pineTextSubtle =>
       Theme.of(this).brightness == Brightness.dark
-          ? AppTheme._darkOnSurfaceVariant.withValues(alpha: 0.85)
+          ? Colors.white
           : AppTheme.textSubtle;
 
   Color get pineCardSurface =>

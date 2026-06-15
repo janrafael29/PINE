@@ -14,6 +14,7 @@ import '../core/theme.dart';
 import '../models/land.dart';
 import '../services/database_service.dart';
 import '../services/image_storage_service.dart';
+import '../widgets/app_scaffold.dart';
 import '../widgets/online_required_dialog.dart';
 import 'land_map_screen.dart';
 
@@ -258,13 +259,8 @@ class _EditFieldScreenState extends State<EditFieldScreen> {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Edit Field'),
-        backgroundColor: AppTheme.primaryGreen,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
+    return AppScaffold(
+      title: 'Edit Field',
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null

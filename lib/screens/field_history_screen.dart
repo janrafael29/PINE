@@ -2,12 +2,17 @@
 library;
 
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
+import '../core/app_state.dart';
 import '../core/supabase_client.dart';
-import '../core/theme.dart';
 import '../services/database_service.dart';
+import '../utils/smooth_line_chart_path.dart';
+import '../widgets/app_scaffold.dart';
 
 enum HistoryRange { last7, last30, last90, all }
 
@@ -80,19 +85,13 @@ class _FieldHistoryScreenState extends State<FieldHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // App uses a toggle in AppState in most screens; for this analytics page we
-    // keep it simple and infer from locale when available.
-    final String lang = Localizations.localeOf(context).languageCode;
-    final bool fil = lang == 'fil';
+    final bool fil = context.watch<AppState>().isFilipino;
     final String? uid = SupabaseClientProvider.instance.client.auth.currentUser?.id;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(fil ? 'History: ${widget.fieldName}' : 'History: ${widget.fieldName}'),
-        backgroundColor: AppTheme.primaryGreen,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
+    return AppScaffold(
+      title: fil
+          ? 'Kasaysayan: ${widget.fieldName}'
+          : 'History: ${widget.fieldName}',
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _db.getCapturedPhotosForField(
           fieldId: widget.fieldId,
@@ -171,7 +170,9 @@ class _FieldHistoryScreenState extends State<FieldHistoryScreen> {
                 const SizedBox(height: 12),
                 _ChartCard(
                   fil: fil,
-                  title: fil ? 'Daily mealybug counts' : 'Daily mealybug counts',
+                  title: fil
+                      ? 'Araw-araw na bilang ng mealybug'
+                      : 'Daily mealybug counts',
                   subtitle: fil
                       ? 'Base sa saved captures (offline-first)'
                       : 'Based on saved captures (offline-first)',
@@ -242,14 +243,14 @@ class _StatsRow extends StatelessWidget {
       children: <Widget>[
         Expanded(
           child: _StatCard(
-            label: fil ? 'Scans' : 'Scans',
+            label: fil ? 'Mga scan' : 'Scans',
             value: '$scans',
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
           child: _StatCard(
-            label: fil ? 'Total bugs' : 'Total bugs',
+            label: fil ? 'Kabuuang bug' : 'Total bugs',
             value: '$totalBugs',
           ),
         ),
@@ -263,7 +264,7 @@ class _StatsRow extends StatelessWidget {
         const SizedBox(width: 10),
         Expanded(
           child: _StatCard(
-            label: fil ? 'Peak' : 'Peak',
+            label: fil ? 'Pinakamataas' : 'Peak',
             value: '$peakBugs',
           ),
         ),
@@ -291,7 +292,12 @@ class _StatCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(label, style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
+          Text(
+            label,
+            style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
           const SizedBox(height: 6),
           Text(
             value,
@@ -352,6 +358,7 @@ class _ChartCard extends StatelessWidget {
                         grid: cs.outline.withValues(alpha: 0.20),
                         tick: cs.onSurfaceVariant,
                         dotInner: cs.surface,
+                        fil: fil,
                       ),
                       size: Size.infinite,
                     ),
@@ -378,6 +385,7 @@ class _CountsLineChartPainter extends CustomPainter {
     required this.grid,
     required this.tick,
     required this.dotInner,
+    required this.fil,
   });
 
   final List<DateTime> dates;
@@ -386,6 +394,7 @@ class _CountsLineChartPainter extends CustomPainter {
   final Color grid;
   final Color tick;
   final Color dotInner;
+  final bool fil;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -393,10 +402,10 @@ class _CountsLineChartPainter extends CustomPainter {
     final double h = size.height;
     if (w <= 0 || h <= 0 || dailyCounts.isEmpty) return;
 
-    const double padLeft = 44;
-    const double padRight = 10;
+    const double padLeft = 48;
+    const double padRight = 12;
     const double padTop = 14;
-    const double padBottom = 34;
+    const double padBottom = 38;
 
     final double chartW = w - padLeft - padRight;
     final double chartH = h - padTop - padBottom;
@@ -432,29 +441,65 @@ class _CountsLineChartPainter extends CustomPainter {
           text: yValue.round().toString(),
           style: TextStyle(fontSize: 11, color: tick),
         ),
-        textDirection: TextDirection.ltr,
+        textDirection: ui.TextDirection.ltr,
       )..layout();
       tp.paint(canvas, Offset(padLeft - tp.width - 6, y - tp.height / 2));
     }
 
-    // Line
-    final Path path = Path()..moveTo(pts.first.dx, pts.first.dy);
-    for (int i = 1; i < pts.length; i++) {
-      path.lineTo(pts[i].dx, pts[i].dy);
+    // Smooth line + gradient fill
+    final double baselineY = padTop + chartH;
+    if (pts.length >= 2) {
+      final Path area = buildMonotonicSmoothAreaPath(pts, baselineY);
+      canvas.drawPath(
+        area,
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: <Color>[
+              accent.withValues(alpha: 0.18),
+              accent.withValues(alpha: 0.02),
+            ],
+          ).createShader(Rect.fromLTWH(0, padTop, w, chartH)),
+      );
+
+      final Path path = buildMonotonicSmoothLinePath(pts);
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = accent
+          ..strokeWidth = 2.5
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round,
+      );
     }
-    final Paint line = Paint()
-      ..color = accent
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    canvas.drawPath(path, line);
 
     // Dots
     final Paint dotOuter = Paint()..color = accent;
     final Paint dotInnerPaint = Paint()..color = dotInner;
-    for (final o in pts) {
-      canvas.drawCircle(o, 4.6, dotOuter);
-      canvas.drawCircle(o, 2.5, dotInnerPaint);
+    for (final Offset o in pts) {
+      canvas.drawCircle(o, 4.2, dotOuter);
+      canvas.drawCircle(o, 2.2, dotInnerPaint);
+    }
+
+    // X-axis date labels
+    final DateFormat fmt = DateFormat(fil ? 'MMM d' : 'MMM d');
+    final int labelStep = xAxisLabelStep(pointCount);
+    for (int i = 0; i < pointCount; i++) {
+      if (i % labelStep != 0 && i != pointCount - 1) continue;
+      final String label = fmt.format(dates[i]);
+      final TextPainter tp = TextPainter(
+        text: TextSpan(
+          text: label,
+          style: TextStyle(fontSize: 9, color: tick),
+        ),
+        textDirection: ui.TextDirection.ltr,
+      )..layout(maxWidth: 52);
+      tp.paint(
+        canvas,
+        Offset(pts[i].dx - tp.width / 2, baselineY + 8),
+      );
     }
   }
 
@@ -489,7 +534,7 @@ class _RecentList extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            fil ? 'Recent scans' : 'Recent scans',
+            fil ? 'Kamakailang scan' : 'Recent scans',
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 8),
@@ -504,7 +549,7 @@ class _RecentList extends StatelessWidget {
               final int conf = (r['confidence'] as num?)?.toInt() ?? 0;
               final DateTime? dt = parseCreatedAt(r['created_at']);
               final String when = dt == null
-                  ? (fil ? 'Unknown time' : 'Unknown time')
+                  ? (fil ? 'Hindi alam ang oras' : 'Unknown time')
                   : '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '
                       '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
               return Padding(
@@ -516,7 +561,7 @@ class _RecentList extends StatelessWidget {
                     Expanded(
                       child: Text(
                         fil
-                            ? 'Count: $c · Conf: $conf% · $when'
+                            ? 'Bilang: $c · Kumpiyansa: $conf% · $when'
                             : 'Count: $c · Conf: $conf% · $when',
                         style: TextStyle(color: cs.onSurface),
                       ),

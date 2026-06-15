@@ -4,6 +4,7 @@ Generated from `runs/retrain/mealybug_v16_selffix/results.csv`.
 
 | File | Description |
 |------|-------------|
+| `figure_26_training_curves_v16_selffix.png` | Thesis-style 2×2 P/R/mAP — **white background** (replace wrong v2 Figure 26) |
 | `v16_selffix_training_curves.png` | 2×2: box/cls loss, P/R, mAP — **training val** (~66% peak) |
 | `v16_selffix_map_progression.png` | mAP@0.5, precision, recall vs epoch — **training val** |
 | `v16_test_benchmark_73.3.png` | **Held-out TEST** — legacy ~66% vs corrected **73.3%** (+ P/R/mAP50-95) |

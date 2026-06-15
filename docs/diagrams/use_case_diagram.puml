@@ -1,0 +1,164 @@
+@startuml PINYA-PIC_Use_Case_Diagram
+' PINYA-PIC — UML Use Case Diagram (June 2026, panel-aligned)
+' Render: PlantUML extension, plantuml.com, or VS Code PlantUML
+
+left to right direction
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam usecase {
+  BackgroundColor white
+  BorderColor #2e3141
+}
+skinparam actor {
+  BackgroundColor #e8f0e3
+  BorderColor #587048
+}
+
+title PINYA-PIC: Mealybug Detection Collector\n(Mobile App + PineSight Admin Web)
+
+actor Farmer as F
+actor "DA Staff" as DA
+actor "Full Admin" as AD
+actor "PineSight\nWeb Admin" as WEB
+
+rectangle "PINYA-PIC System" {
+
+  package "Account & access" {
+    usecase "Register Account" as UC_REG
+    usecase "Login / Logout" as UC_LOGIN
+    usecase "Manage Profile" as UC_PROF
+    usecase "Request DA Access" as UC_DA_REQ
+    usecase "View Access Request Outcome" as UC_DA_OUT
+  }
+
+  package "Field management" {
+    usecase "Create Field" as UC_CF
+    usecase "Edit Field" as UC_EF
+    usecase "View Fields / Field Detail" as UC_VF
+    usecase "Delete Field" as UC_DF
+    usecase "Edit Field Boundary" as UC_BF
+    usecase "Manage Field Photos" as UC_MFP
+  }
+
+  package "Capture & reporting" {
+    usecase "Select Field for Scan" as UC_SEL
+    usecase "Capture Image" as UC_CAP
+    usecase "Detect Mealybugs\n(On-Device YOLO)" as UC_DET
+    usecase "Save Capture & Queue Sync" as UC_SAVE
+    usecase "Submit Report to Cloud" as UC_CLOUD
+    usecase "View Capture History" as UC_HIST
+    usecase "View Capture Detail" as UC_DETL
+    usecase "Read Expert Advice" as UC_READ
+  }
+
+  package "Diagnose & education" {
+    usecase "View Diagnose Dashboard" as UC_DIAG
+    usecase "View Weekly Pest Chart" as UC_CHART
+    usecase "Browse Disease Information" as UC_DIS
+  }
+
+  package "Map & analytics" {
+    usecase "View Detections Map" as UC_MAP
+    usecase "View Outbreak /\nSeverity Visualization" as UC_HEAT
+    usecase "View Home Map Preview" as UC_HOME
+  }
+
+  package "Staff review" {
+    usecase "View Staff Dashboard" as UC_STHOME
+    usecase "View Org Analytics" as UC_ANAL
+    usecase "Review Farmer Reports\n(by Field)" as UC_REP
+    usecase "Write Expert Advice" as UC_ADV
+    usecase "View Farmer Feedback" as UC_FBVIEW
+  }
+
+  package "Administration" {
+    usecase "Review DA Access Requests" as UC_DAQ
+    usecase "Approve / Reject\nDA Access" as UC_DAP
+    usecase "Manage Users" as UC_USERS
+    usecase "Write Farm-Level Insight" as UC_FINS
+  }
+
+  package "Web console" {
+    usecase "Reports Drawer\n(Field Groups)" as UC_WREP
+    usecase "Analytics Drawer" as UC_WAN
+    usecase "Fields / Users Drawers" as UC_WFLD
+  }
+
+  usecase "Submit Feedback" as UC_FB
+}
+
+' --- Farmer ---
+F --> UC_REG
+F --> UC_LOGIN
+F --> UC_PROF
+F --> UC_DA_REQ
+F --> UC_DA_OUT
+F --> UC_CF
+F --> UC_EF
+F --> UC_VF
+F --> UC_MFP
+F --> UC_SEL
+F --> UC_HIST
+F --> UC_DETL
+F --> UC_DIAG
+F --> UC_DIS
+F --> UC_MAP
+F --> UC_HOME
+F --> UC_FB
+
+' --- DA Staff (no camera / no capture) ---
+DA --> UC_LOGIN
+DA --> UC_PROF
+DA --> UC_STHOME
+DA --> UC_ANAL
+DA --> UC_REP
+DA --> UC_ADV
+DA --> UC_FBVIEW
+DA --> UC_MAP
+DA --> UC_HEAT
+
+' --- Full Admin (inherits DA + admin-only) ---
+AD --|> DA
+AD --> UC_DAQ
+AD --> UC_DAP
+AD --> UC_USERS
+AD --> UC_FINS
+
+' --- Web (staff/admin browser UI) ---
+WEB --> UC_LOGIN
+WEB --> UC_WREP
+WEB --> UC_WAN
+WEB --> UC_WFLD
+WEB --> UC_ADV
+WEB --> UC_MAP
+WEB --> UC_HEAT
+
+' --- Include (mandatory) ---
+UC_CAP ..> UC_DET : <<include>>
+UC_SAVE ..> UC_CAP : <<include>>
+UC_SAVE ..> UC_CLOUD : <<include>>
+UC_DIAG ..> UC_CHART : <<include>>
+UC_REP ..> UC_DETL : <<include>>
+UC_ADV ..> UC_DETL : <<include>>
+
+' --- Extend (optional) ---
+UC_DF ..> UC_VF : <<extend>>
+UC_BF ..> UC_VF : <<extend>>
+UC_BF ..> UC_EF : <<extend>>
+UC_READ ..> UC_DETL : <<extend>>
+UC_ADV ..> UC_REP : <<extend>>
+UC_DAP ..> UC_DAQ : <<extend>>
+
+note right of DA
+  Staff mobile app:
+  center nav opens review queue
+  (no camera / no new captures)
+end note
+
+note bottom of UC_CLOUD
+  One detection row per saved capture.
+  Positive (count > 0) → map + analytics.
+  Negative → history/table only.
+end note
+
+@enduml

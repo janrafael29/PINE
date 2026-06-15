@@ -2,7 +2,13 @@ erDiagram
     AUTH_USERS ||--o| PROFILES : has
     AUTH_USERS ||--o{ FIELDS : owns
     AUTH_USERS ||--o{ DETECTIONS : creates
-    LAND_SQLITE ||--o{ DETECTION_SQLITE : contains
+    AUTH_USERS ||--o{ ACCESS_REQUEST : submits
+    FIELDS ||--o{ DETECTIONS : contains
+    FIELDS ||--o{ FARM_INSIGHTS : has
+    DETECTIONS ||--o| EXPERT_RESPONSES : may_have
+    CAPTURED_PHOTO ||--o| UPLOAD_QUEUE : linked_by_local_image_path
+    FIELD_CACHE ||--o| FIELDS : mirrors_when_offline
+    LAND ||--o| FIELDS : boundary_polygon_local
 
     PROFILES {
         uuid id PK
@@ -10,6 +16,7 @@ erDiagram
         text email
         text display_name
         text photo_url
+        text account_intent
         timestamptz created_at
         timestamptz updated_at
     }
@@ -19,6 +26,7 @@ erDiagram
         uuid user_id FK
         text name
         text address
+        jsonb boundary_json
         text preview_image_path
         int image_count
         timestamptz last_detection
@@ -34,53 +42,86 @@ erDiagram
         float confidence
         int count
         bool has_mealybugs
+        jsonb detections_json
         float latitude
         float longitude
         timestamptz created_at
     }
 
-    LAND_SQLITE {
-        int id PK
-        text land_name
-        text polygon_coordinates
-        text created_at
+    EXPERT_RESPONSES {
+        uuid id PK
+        uuid detection_id FK UK
+        uuid author_id FK
+        text strategy_text
+        text action_type
+        timestamptz created_at
+        timestamptz updated_at
     }
 
-    DETECTION_SQLITE {
+    FARM_INSIGHTS {
+        uuid id PK
+        uuid field_id FK
+        uuid author_id FK
+        text insight_text
+        timestamptz created_at
+    }
+
+    ACCESS_REQUEST {
+        uuid id PK
+        uuid user_id FK
+        text full_name
+        text organization
+        text company_location
+        text position
+        text note
+        text status
+        uuid reviewer_id FK
+        text review_note
+        timestamptz reviewed_at
+    }
+
+    CAPTURED_PHOTO {
         int id PK
-        text image_path
+        text local_image_path
+        text field_id
+        text field_name
+        int count
+        float confidence
+        text user_id
+        text remote_id
+        text remote_image_url
+        text detections_json
         float latitude
         float longitude
-        int land_id FK
-        int bug_count
-        float confidence_score
-        text timestamp
+        text created_at
     }
 
     UPLOAD_QUEUE {
         int id PK
         text local_image_path
-        int confidence
-        int count
         text field_id
+        float confidence
+        int count
         float latitude
         float longitude
+        text name_hint
         text status
         int attempts
         text last_error
         text created_at
     }
 
-    CAPTURED_PHOTO {
-        int id PK
-        text local_image_path
-        text field_name
-        text field_id
-        int confidence
-        int count
-        float latitude
-        float longitude
+    FIELD_CACHE {
+        text id PK
         text user_id
-        text created_at
-        text exported_at
+        text name
+        text address
+        text boundary_json
+        text sync_status
+    }
+
+    LAND {
+        int id PK
+        text land_name
+        text polygon_coordinates
     }

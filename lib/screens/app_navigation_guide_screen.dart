@@ -24,6 +24,8 @@ class AppNavigationGuideScreen extends StatefulWidget {
 class _AppNavigationGuideScreenState extends State<AppNavigationGuideScreen> {
   final PageController _pageController = PageController();
   int _page = 0;
+  late final List<NavigationGuideSlide> _slides =
+      navigationGuideSlidesForCurrentUser();
 
   @override
   void dispose() {
@@ -31,7 +33,7 @@ class _AppNavigationGuideScreenState extends State<AppNavigationGuideScreen> {
     super.dispose();
   }
 
-  bool get _isLast => _page >= kNavigationGuideSlides.length;
+  bool get _isLast => _page >= _slides.length;
 
   void _closeReplay() {
     Navigator.of(context).pop();
@@ -51,8 +53,8 @@ class _AppNavigationGuideScreenState extends State<AppNavigationGuideScreen> {
           TextButton(
             onPressed: () {
               if (widget.showPreferenceChooser) {
-                _pageController.jumpToPage(kNavigationGuideSlides.length);
-                setState(() => _page = kNavigationGuideSlides.length);
+                _pageController.jumpToPage(_slides.length);
+                setState(() => _page = _slides.length);
               } else {
                 _closeReplay();
               }
@@ -70,11 +72,11 @@ class _AppNavigationGuideScreenState extends State<AppNavigationGuideScreen> {
             child: PageView.builder(
               controller: _pageController,
               onPageChanged: (int i) => setState(() => _page = i),
-              itemCount: kNavigationGuideSlides.length + 1,
+              itemCount: _slides.length + 1,
               itemBuilder: (BuildContext context, int index) {
-                if (index < kNavigationGuideSlides.length) {
+                if (index < _slides.length) {
                   final NavigationGuideSlide slide =
-                      kNavigationGuideSlides[index];
+                      _slides[index];
                   return Padding(
                     padding: const EdgeInsets.all(24),
                     child: Column(
@@ -118,7 +120,7 @@ class _AppNavigationGuideScreenState extends State<AppNavigationGuideScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List<Widget>.generate(
-                kNavigationGuideSlides.length + 1,
+                _slides.length + 1,
                 (int i) => Container(
                   width: i == _page ? 22 : 8,
                   height: 8,

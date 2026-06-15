@@ -132,7 +132,7 @@ Use this file to track defense prep, app features, and thesis updates. Mark item
 | M7 | Treemap or stacked bar: field share of positives | P2 | [ ] | Phase 2 |
 | M8 | Bubble map layer on Leaflet | P2 | [ ] | Phase 2 |
 | M9 | Full visual system refresh (tokens, motion, empty states) | P1 | [ ] | Phase 3 |
-| M10 | Netlify deploy after admin UI changes | P0 | [~] | `ADMIN_WEB_DEPLOY.md` |
+| M10 | Netlify deploy after admin UI changes | P0 | [x] | Live: `celadon-mochi-48bf70.netlify.app` · `deploy_admin_web.ps1` (draft+publish fallback) |
 
 ---
 

@@ -1,30 +1,29 @@
 flowchart TD
-    A[App Launch] --> B{Terms and Privacy Accepted}
-    B -->|No| C[TermsAcceptanceScreen]
-    C --> D{User Accepts}
-    D -->|No| E[Stay on Terms or Exit]
-    D -->|Yes| F[Save SharedPreferences flags]
-    F --> G[IntroFlowScreen]
-    B -->|Yes| G
-
-    G --> H[Splash Screen]
-    H --> I{Onboarding Complete}
-    I -->|No| J[OnboardingScreen]
-    J --> K[Mark onboarding complete]
-    K --> L[AuthGate]
-    I -->|Yes| L
-
-    L --> M[Stream auth state change]
-    M --> N{Session Exists}
-    N -->|No| O[WelcomeScreen]
-    O --> P[Login or Register]
-    P --> Q[Supabase sign in or sign up]
-    Q --> R[Upsert profile row]
-    R --> S[MainDashboardScreen]
-
-    N -->|Yes| T[MainDashboardScreen]
-    T --> U{Display name empty}
-    U -->|Yes| V[NicknamePromptScreen]
-    V --> W[Upsert profiles display_name]
-    W --> T
-    U -->|No| X[Dashboard tabs]
+    A[App Launch main.dart] --> B{Supabase configured?}
+    B -->|No| C[ConfigRequiredScreen]
+    B -->|Yes| D[IntroFlowScreen route /]
+    D --> E[SplashScreen ~650ms]
+    E --> F{Inactive 14+ days?}
+    F -->|Yes| G[resetOnboardingComplete + signOut]
+    G --> H{Onboarding complete?}
+    F -->|No| H
+    H -->|No| I[OnboardingScreen 3 slides]
+    I --> J[_AuthGate]
+    H -->|Yes| J
+    J --> K{Session exists?}
+    K -->|No| L[WelcomeScreen]
+    L --> M[Login or Register tap]
+    M --> N[ensureTermsAccepted before auth]
+    N --> O[LoginScreen / RegisterScreen email+password]
+    O --> P[SupabaseProfileService.upsertCurrentUserProfile]
+    P --> J
+    K -->|Yes| Q[UnlockGate biometric optional]
+    Q --> R[PostAuthGate staff onboarding if pending]
+    R --> S[NavigationGuideHost]
+    S --> T[MainDashboardScreen]
+    T --> U{display_name empty?}
+    U -->|Yes| V[/nickname-prompt pushed]
+    U -->|No| W{JWT role center nav}
+    W -->|Full admin| X[DaAccessRequestsScreen]
+    W -->|DA staff| Y[AdminReportsScreen pendingReply]
+    W -->|Farmer| Z[startFieldFirstScan]

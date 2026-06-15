@@ -13,6 +13,7 @@ import '../core/network_reachability.dart';
 import '../core/supabase_client.dart';
 import '../core/theme.dart';
 import 'location_picker_screen.dart';
+import '../widgets/app_scaffold.dart';
 import '../widgets/online_required_dialog.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -410,13 +411,8 @@ class _FarmDetailsScreenState extends State<FarmDetailsScreen> {
   Widget build(BuildContext context) {
     final bool fil = context.watch<AppState>().isFilipino;
     final textTheme = Theme.of(context).textTheme;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(fil ? 'Mga Detalye ng Bukid' : 'Farm Details'),
-        backgroundColor: AppTheme.primaryGreen,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
+    return AppScaffold(
+      title: fil ? 'Mga Detalye ng Bukid' : 'Farm Details',
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(

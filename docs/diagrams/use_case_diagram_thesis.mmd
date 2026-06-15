@@ -1,0 +1,85 @@
+%% PINYA-PIC — Thesis-style use case (Mermaid, oval shapes)
+%% Best classic ovals: use use_case_diagram_thesis.puml with PlantUML
+
+flowchart TB
+  classDef actor fill:#e8f0e3,stroke:#2e3141,stroke-width:2px
+  classDef uc fill:#fff,stroke:#2e3141,stroke-width:1.5px
+
+  TITLE["PINYA-PIC: Mealybug Collecting Mobile Application with Decision Middleware"]
+
+  subgraph ROW[" "]
+    direction LR
+    F((Farmer)):::actor
+
+    subgraph SYS["PINYA-PIC System Boundary"]
+      direction TB
+
+      subgraph UC_LEFT[" "]
+        direction TB
+        L1([Register Account]):::uc
+        L2([Manage Profile]):::uc
+        L3([Log In]):::uc
+        L4([Create New Field]):::uc
+        L5([Select Field]):::uc
+        L6([View Field]):::uc
+        L7([Capture Image]):::uc
+        L8([View Map]):::uc
+        L9([Edit Field]):::uc
+      end
+
+      subgraph UC_MID[" "]
+        direction TB
+        M1([Detect Mealybugs On-Device]):::uc
+        M2([Save Capture and Submit to Cloud]):::uc
+        M3([Delete Field]):::uc
+        M4([Edit Field Boundary]):::uc
+        M5([View Detections Map]):::uc
+        M6([View Mealybug Infestation Count]):::uc
+        M7([Manage Field Photos]):::uc
+      end
+
+      subgraph UC_RIGHT[" "]
+        direction TB
+        R4([View Outbreak Visualization]):::uc
+        R5([Review Farmer Reports]):::uc
+        R6([View Capture Detail]):::uc
+        R7([Write Expert Advice]):::uc
+      end
+    end
+
+    DA((DA Staff)):::actor
+  end
+
+  AD((Full Admin)):::actor
+  A1([Review DA Access Requests]):::uc
+  A2([Approve Sign-Up Request]):::uc
+
+  %% Includes
+  L5 -.->|«include»| L7
+  L7 -.->|«include»| M1
+  L7 -.->|«include»| M2
+  R5 -.->|«include»| R6
+  R7 -.->|«include»| R6
+
+  %% Extends
+  M3 -.->|«extend»| L6
+  M4 -.->|«extend»| L6
+  M4 -.->|«extend»| L9
+  M5 -.->|«extend»| L6
+  M6 -.->|«extend»| L6
+  M7 -.->|«extend»| L6
+  R7 -.->|«extend»| R5
+  A2 -.->|«extend»| A1
+
+  %% Farmer
+  F --> L1 & L2 & L3 & L4 & L5 & L6 & L7 & L8 & L9
+
+  %% DA Staff (shared Log In, Profile, Map with farmer nodes)
+  DA --> L2 & L3 & L8 & R4 & R5
+
+  %% Full Admin
+  AD --> A2
+
+  TITLE ~~~ ROW
+  ROW ~~~ AD
+  AD --> A1

@@ -22,16 +22,23 @@ class DeviceUnlockScreen extends StatefulWidget {
 class _DeviceUnlockScreenState extends State<DeviceUnlockScreen> {
   bool _busy = false;
   String? _error;
+  bool _autoPromptAttempted = false;
 
   @override
   void initState() {
     super.initState();
-    // Auto-prompt once on entry.
-    // ignore: discarded_futures
-    _unlock();
+    // Wait for the first frame + brief delay so the biometric sheet opens reliably.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future<void>.delayed(const Duration(milliseconds: 520), () {
+        if (!mounted || _autoPromptAttempted) return;
+        _autoPromptAttempted = true;
+        // ignore: discarded_futures
+        _unlock(fromAutoPrompt: true);
+      });
+    });
   }
 
-  Future<void> _unlock() async {
+  Future<void> _unlock({bool fromAutoPrompt = false}) async {
     if (_busy) return;
     setState(() {
       _busy = true;
@@ -47,10 +54,14 @@ class _DeviceUnlockScreenState extends State<DeviceUnlockScreen> {
         widget.onUnlocked();
         return;
       }
-      setState(() => _error = 'Unlock was cancelled.');
+      if (!fromAutoPrompt) {
+        setState(() => _error = 'Unlock was cancelled. Tap Unlock to try again.');
+      }
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'Could not unlock: $e');
+      if (!fromAutoPrompt) {
+        setState(() => _error = 'Could not unlock. Tap Unlock to try again.');
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }

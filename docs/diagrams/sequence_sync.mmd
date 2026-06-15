@@ -1,37 +1,27 @@
 sequenceDiagram
     participant User
-    participant PR as PhotoResultFlow
+    participant PRS as PhotoResultScreen
     participant DBS as DatabaseService
+    participant AS as AppState
     participant CTS as CloudSyncService
     participant RDS as DetectionService
-    participant ST as SupabaseStorage
-    participant PG as PostgresDetections
+    participant ST as Supabase Storage
+    participant PG as Postgres detections
 
-    User->>PR: Tap Save
-    PR->>DBS: insertCapturedPhoto
-    DBS-->>PR: photoId
-    PR->>DBS: enqueueUpload
-    DBS-->>PR: queued
-    PR->>CTS: syncInBackground
-
-    CTS->>CTS: check auth user and online state
-    alt Online and user exists
-        CTS->>DBS: getPendingUploads limit 10
-        DBS-->>CTS: pending rows
-        loop For each pending row
-            CTS->>CTS: check local image file
-            alt File exists
-                CTS->>RDS: saveDetection image and metadata
-                RDS->>ST: upload image
-                ST-->>RDS: imageUrl
-                RDS->>PG: insert detection row
-                PG-->>RDS: success
-                RDS-->>CTS: upload success
-                CTS->>DBS: markUploadSynced
-            else File missing
-                CTS->>DBS: markUploadFailed
-            end
-        end
-    else Offline or no user
-        CTS-->>CTS: no action queue remains pending
+    User->>PRS: Tap Save
+    PRS->>DBS: insertCapturedPhoto
+    PRS->>DBS: enqueueUpload
+    PRS->>AS: bumpCapturedPhotos
+    alt Online and signed in
+        PRS->>CTS: syncPending limit 1
+        CTS->>DBS: backfill + getPendingUploads
+        CTS->>RDS: saveDetection from queue row
+        RDS->>ST: upload image file
+        RDS->>PG: insert detections has_mealybugs
+        RDS-->>CTS: detection_id + image_url
+        CTS->>DBS: linkCapturedPhotoToRemoteUpload
+        CTS->>DBS: markUploadSynced
+    else Offline or not signed in
+        PRS->>CTS: syncInBackground
+        Note over CTS,DBS: Retries on dashboard resume when online
     end

@@ -20,7 +20,7 @@
         <div class="pine-card pine-overlay-card" style="max-width: 420px">
           <h2>Sign in</h2>
           <p class="pine-muted" style="margin-top: -0.5rem; margin-bottom: 1rem">
-            Staff account needs <code>admin: true</code> (full admin) or <code>da: true</code> (DA / OMAG) in Supabase <strong>app metadata</strong>.
+            Staff account needs <code>admin: true</code> (full admin) or <code>da: true</code> (agriculturist / OMAG) in Supabase <strong>app metadata</strong>.
           </p>
           <p id="login-error" class="pine-error" hidden></p>
           <form id="login-form">
@@ -39,11 +39,14 @@
 
       <section id="not-admin-section" class="pine-overlay-stack" hidden>
         <div class="pine-card pine-overlay-card" style="max-width: 480px">
-          <h2>Not authorized</h2>
+          <h2>Staff access only</h2>
           <p class="pine-muted">
-            Signed in as <span id="not-admin-email"></span>.
-            This app checks <code>app_metadata.admin</code> or <code>app_metadata.da</code> on your <strong>current JWT</strong> (issued at sign-in). After you set staff flags in Supabase, <strong>Sign out</strong> and sign in again so the token updates.
-            Confirm <code>admin/config.js</code> points at the <strong>same</strong> Supabase project.
+            You are signed in as <span id="not-admin-email"></span>.
+            PineSight Admin is for <strong>staff</strong> (full admin or DA/OMAG). Farmer accounts should use the mobile app.
+          </p>
+          <p class="pine-muted">
+            If you were recently approved as staff, <strong>Sign out</strong> below and sign in again so your access updates.
+            Otherwise, ask a full admin to grant DA or admin access, or use a different account.
           </p>
           <button type="button" class="pine-btn pine-btn-primary" id="not-admin-sign-out">Sign out</button>
         </div>
@@ -63,7 +66,9 @@
                 <span><strong id="stat-detections" class="pine-map-stat">0</strong> reports</span>
               </div>
               <nav class="pine-map-sidebar-nav">
-                <button type="button" class="pine-sidebar-nav-btn" id="btn-drawer-users" data-open-drawer="users" data-admin-only>Users</button>
+                <button type="button" class="pine-sidebar-nav-btn" id="btn-drawer-users" data-open-drawer="users" data-admin-only>
+                  Users <span id="pine-da-pending-badge" class="pine-nav-badge" hidden></span>
+                </button>
                 <button type="button" class="pine-sidebar-nav-btn" id="btn-drawer-fields" data-open-drawer="fields" data-admin-only>Fields</button>
                 <button type="button" class="pine-sidebar-nav-btn" id="btn-drawer-captures" data-open-drawer="captures">Reports</button>
                 <button type="button" class="pine-sidebar-nav-btn" id="btn-drawer-analytics" data-open-drawer="analytics">Analytics</button>
@@ -132,56 +137,6 @@
                     Undo
                   </button>
                 </div>
-                <p class="pine-map-hint pine-map-hint--sidebar" title="Selection tips" data-admin-only>
-                  <strong>Captures:</strong> With <em>Select</em> on, click pins or <strong>left-drag</strong> a box to multi-select; <strong>right-drag</strong> pans the map. Off = normal map; Shift+click still toggles.
-                </p>
-                <div id="capture-bulk-bar" class="pine-capture-bulk-bar pine-capture-bulk-bar--sidebar" hidden data-admin-only>
-                  <span id="capture-bulk-count" class="pine-capture-bulk-count">0 selected</span>
-                  <div class="pine-capture-bulk-field-block">
-                    <label class="pine-label pine-label--inline" for="capture-bulk-field">Field</label>
-                    <select
-                      id="capture-bulk-field"
-                      class="pine-input pine-input--compact"
-                      title="Target for Move. Changing this alone does not reassign captures — use Assign field for that."
-                    ></select>
-                    <button
-                      type="button"
-                      class="pine-btn pine-btn-secondary pine-btn--sm"
-                      id="capture-bulk-assign-field"
-                      disabled
-                      title="Set selected captures’ field link to the field above (coordinates unchanged unless you use Move)"
-                    >
-                      Assign field
-                    </button>
-                  </div>
-                  <div class="pine-capture-bulk-actions">
-                    <button type="button" class="pine-btn pine-btn-secondary pine-btn--sm" id="capture-bulk-clear">Clear</button>
-                    <button
-                      type="button"
-                      class="pine-btn pine-btn-secondary pine-btn--sm"
-                      id="capture-bulk-move"
-                      disabled
-                      title="Random position inside the field geofence for each selected capture"
-                    >
-                      Move
-                    </button>
-                  </div>
-                  <div class="pine-capture-bulk-subrow">
-                    <label class="pine-label pine-label--inline" for="capture-bulk-user">Owner account</label>
-                    <select id="capture-bulk-user" class="pine-input pine-input--compact" title="Move captures to this Supabase user">
-                      <option value="">— choose account —</option>
-                    </select>
-                    <button
-                      type="button"
-                      class="pine-btn pine-btn-secondary pine-btn--sm"
-                      id="capture-bulk-assign-user"
-                      disabled
-                      title="Sets user_id; clears field so you can assign a field for the new owner"
-                    >
-                      Set owner
-                    </button>
-                  </div>
-                </div>
               </div>
               <div class="pine-map-sidebar-layers" id="map-layer-chips">
                 <span class="pine-sidebar-layers-label">Layers</span>
@@ -193,16 +148,6 @@
                 </button>
                 <button type="button" class="pine-layer-chip pine-layer-chip--sidebar pine-layer-chip-off" data-map-layer="accounts" aria-pressed="false" title="Account anchors from field shapes / captures">
                   <span class="pine-layer-icon pine-layer-icon--account"></span>Accounts
-                </button>
-                <button
-                  type="button"
-                  class="pine-layer-chip pine-layer-chip--sidebar pine-layer-chip--secondary"
-                  data-map-selection-toggle
-                  data-admin-only
-                  aria-pressed="false"
-                  title="Click pins or drag a box on the map to multi-select (no popup on pin click)"
-                >
-                  Select
                 </button>
                 <button type="button" class="pine-layer-chip pine-layer-chip--sidebar" data-map-basemap="toggle" title="Basemap">Street</button>
               </div>
@@ -222,14 +167,28 @@
                 <span>Fewer</span>
                 <span>More positive sightings</span>
               </div>
-              <p class="pine-heatmap-legend-hint">Zoom in for individual capture pins.</p>
+              <p class="pine-heatmap-legend-hint">Zoom in closer (street level) for individual capture pins.</p>
             </div>
           </div>
 
+          <div id="drawer-backdrop" class="pine-drawer-backdrop" hidden aria-hidden="true"></div>
+
           <aside id="admin-drawer" class="pine-drawer" hidden>
+            <div class="pine-drawer-resize" id="drawer-resize" title="Drag to resize panel" aria-hidden="true"></div>
             <div class="pine-drawer-header">
               <span id="drawer-title" class="pine-drawer-title">Tools</span>
-              <button type="button" class="pine-drawer-close" id="drawer-close" aria-label="Close panel">×</button>
+              <div class="pine-drawer-header-actions">
+                <button
+                  type="button"
+                  class="pine-btn pine-btn-secondary pine-btn--sm pine-drawer-export-btn"
+                  id="drawer-export-reviewed"
+                  hidden
+                  title="Download CSV and annotated PNGs for captures with expert advice"
+                >
+                  Export reviewed (ZIP)
+                </button>
+                <button type="button" class="pine-drawer-close" id="drawer-close" aria-label="Close panel">×</button>
+              </div>
             </div>
             <div id="drawer-content" class="pine-drawer-body"></div>
           </aside>
@@ -239,8 +198,21 @@
 
     <div id="pine-toast" class="pine-toast" hidden role="status"></div>
 
+    <div id="pine-da-notify" class="pine-da-notify" hidden role="dialog" aria-modal="true" aria-labelledby="pine-da-notify-title">
+      <div class="pine-da-notify-backdrop" id="pine-da-notify-backdrop"></div>
+      <div class="pine-da-notify-card pine-card">
+        <h2 id="pine-da-notify-title" class="pine-da-notify-title">Agriculturist access request</h2>
+        <div id="pine-da-notify-body" class="pine-da-notify-body"></div>
+        <div class="pine-da-notify-actions">
+          <button type="button" class="pine-btn pine-btn-primary" id="pine-da-notify-review">Review in Users</button>
+          <button type="button" class="pine-btn pine-btn-secondary" id="pine-da-notify-dismiss">Dismiss</button>
+        </div>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
     <script>
       window.PINE_ADMIN_CONFIG = window.PINE_ADMIN_CONFIG || {};

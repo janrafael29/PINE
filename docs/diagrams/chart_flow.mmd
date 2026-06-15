@@ -1,38 +1,9 @@
 flowchart TD
-    A[RealLineChartPainter] --> B[Receive dailyCounts]
-    B --> C[Receive date labels]
-    C --> D[Compute point count]
-    D --> E[Find peak index and value]
-    E --> F[Start paint]
-
-    subgraph GRID[Draw grid]
-        F --> G[Draw horizontal grid lines]
-        G --> H[Draw y axis labels]
-    end
-
-    subgraph AXIS[Draw x axis labels]
-        H --> I[Build day labels]
-        I --> J{Language mode}
-        J -->|Filipino| K[Use Filipino day names]
-        J -->|English| L[Use English day names]
-    end
-
-    subgraph CURVE[Draw smooth curve]
-        K --> M[Build smooth path]
-        L --> M
-        M --> N[Catmull Rom to Bezier]
-        N --> O[Stroke curve]
-    end
-
-    subgraph AREA[Draw area fill]
-        O --> P[Build area path]
-        P --> Q[Apply gradient fill]
-    end
-
-    subgraph PEAK[Draw peak marker]
-        Q --> R[Draw guide line]
-        R --> S[Draw peak dot]
-        S --> T[Draw peak value label]
-    end
-
-    T --> U[Render chart in diagnose tab]
+    A[DashboardStats.dailyCounts last 7 days] --> B[Group by calendar day]
+    B --> C[_RealLineChartPainter compute maxY]
+    C --> D[Draw grid Y labels 0 at bottom]
+    D --> E[buildMonotonicSmoothLinePath]
+    E --> F[buildMonotonicSmoothAreaFill]
+    F --> G[X axis EN or FIL day labels]
+    G --> H[Peak marker dot + value badge]
+    H --> I[Render in Diagnose tab PineCard]

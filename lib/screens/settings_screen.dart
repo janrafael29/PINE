@@ -7,11 +7,14 @@ import 'package:provider/provider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../core/app_state.dart';
+import '../core/demo_accounts.dart';
 import '../core/navigation_guide_prefs.dart';
 import '../core/security_prefs.dart';
 import '../widgets/app_scaffold.dart';
+import '../widgets/demo_account_switcher.dart';
+import '../widgets/pine_card.dart';
+import '../widgets/show_pine_bottom_sheet.dart';
 import 'about_screen.dart';
-import 'app_navigation_guide_screen.dart';
 import 'privacy_screen.dart';
 import 'terms_screen.dart';
 
@@ -64,51 +67,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _pickLanguage(BuildContext context) async {
     final appState = context.read<AppState>();
     final String selected = appState.languageCode;
-    final String? result = await showModalBottomSheet<String>(
+    final String? result = await showPineBottomSheet<String>(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
+      title: 'Choose language',
       builder: (BuildContext sheetContext) {
         final ColorScheme cs = Theme.of(sheetContext).colorScheme;
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              const SizedBox(height: 8),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: cs.outlineVariant,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                'Choose language',
-                style: Theme.of(sheetContext).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-              const SizedBox(height: 10),
-              ListTile(
-                title: const Text('English'),
-                trailing: selected == 'en'
-                    ? Icon(Icons.check, color: cs.primary)
-                    : null,
-                onTap: () => Navigator.pop(sheetContext, 'en'),
-              ),
-              ListTile(
-                title: const Text('Filipino'),
-                trailing: selected == 'fil'
-                    ? Icon(Icons.check, color: cs.primary)
-                    : null,
-                onTap: () => Navigator.pop(sheetContext, 'fil'),
-              ),
-              const SizedBox(height: 8),
-            ],
-          ),
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            ListTile(
+              title: const Text('English'),
+              trailing: selected == 'en'
+                  ? Icon(Icons.check, color: cs.primary)
+                  : null,
+              onTap: () => Navigator.pop(sheetContext, 'en'),
+            ),
+            ListTile(
+              title: const Text('Filipino'),
+              trailing: selected == 'fil'
+                  ? Icon(Icons.check, color: cs.primary)
+                  : null,
+              onTap: () => Navigator.pop(sheetContext, 'fil'),
+            ),
+            const SizedBox(height: 8),
+          ],
         );
       },
     );
@@ -134,168 +116,70 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return AppScaffold(
       title: 'Settings',
       body: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
           children: <Widget>[
             _buildSection(context, 'Account', <Widget>[
               _buildTile(
                 context,
                 icon: Icons.person,
                 title: 'Profile',
-                color: Colors.blue,
                 onTap: () => Navigator.pushNamed(context, '/profile'),
               ),
             ]),
             _buildSection(context, 'Preferences', <Widget>[
               if (_deviceUnlockAvailable)
-                Card(
-                  margin:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  child: SwitchListTile(
-                    secondary: Container(
-                      padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.lock,
-                      color: Theme.of(context).colorScheme.primary,
-                      size: 20,
-                    ),
-                    ),
-                    title: const Text('Device unlock'),
-                    subtitle: const Text(
-                      'Require fingerprint/face or device PIN when opening the app',
-                    ),
-                    value: _requireDeviceUnlock,
-                    onChanged: (bool value) async {
-                      setState(() => _requireDeviceUnlock = value);
-                      await SecurityPrefs.setRequireDeviceUnlock(value);
-                    },
-                  ),
+                _buildSwitchTile(
+                  context,
+                  icon: Icons.lock,
+                  title: 'Device unlock',
+                  value: _requireDeviceUnlock,
+                  onChanged: (bool value) async {
+                    setState(() => _requireDeviceUnlock = value);
+                    await SecurityPrefs.setRequireDeviceUnlock(value);
+                  },
                 ),
               _buildTile(
                 context,
                 icon: Icons.language,
                 title: 'Language',
                 subtitle: languageLabel,
-                color: Colors.purple,
                 onTap: () => _pickLanguage(context),
               ),
-              Card(
-                margin:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                child: SwitchListTile(
-                  secondary: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.dark_mode_outlined,
-                      color: Theme.of(context).colorScheme.primary,
-                      size: 20,
-                    ),
-                  ),
-                  title: const Text('Dark mode'),
-                  subtitle: const Text('Easier on the eyes in low light'),
-                  value: appState.darkMode,
-                  onChanged: (bool value) {
-                    // ignore: discarded_futures
-                    context.read<AppState>().setDarkMode(value);
-                  },
-                ),
-              ),
-              Card(
-                margin:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                child: SwitchListTile(
-                  secondary: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.center_focus_strong_outlined,
-                      color: Theme.of(context).colorScheme.primary,
-                      size: 20,
-                    ),
-                  ),
-                  title: const Text('Detection accuracy mode'),
-                  subtitle: const Text(
-                    'Tiled scan for tiny pests on plants only (~24 crops). '
-                    'Turn off for people/indoor photos.',
-                  ),
-                  value: appState.inferenceAccuracyMode,
-                  onChanged: (bool value) {
-                    // ignore: discarded_futures
-                    context.read<AppState>().setInferenceAccuracyMode(value);
-                  },
-                ),
-              ),
-              Card(
-                margin:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                child: SwitchListTile(
-                  secondary: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.school_outlined,
-                      color: Theme.of(context).colorScheme.primary,
-                      size: 20,
-                    ),
-                  ),
-                  title: const Text('Show app guide when opening'),
-                  subtitle: const Text(
-                    'Navigation tour after sign-in (device unlock if enabled)',
-                  ),
-                  value: _showNavGuideEachOpen,
-                  onChanged: (bool value) async {
-                    setState(() => _showNavGuideEachOpen = value);
-                    await setNavigationGuideShowEachSession(value);
-                  },
-                ),
-              ),
-              _buildTile(
+              _buildSwitchTile(
                 context,
-                icon: Icons.menu_book_outlined,
-                title: 'View app navigation guide',
-                subtitle: 'Walkthrough of Home, Scan, and tabs',
-                color: Colors.teal,
-                onTap: () async {
-                  await Navigator.push<void>(
-                    context,
-                    MaterialPageRoute<void>(
-                      builder: (_) => const AppNavigationGuideScreen(
-                        showPreferenceChooser: false,
-                      ),
-                    ),
-                  );
+                icon: Icons.dark_mode_outlined,
+                title: 'Dark mode',
+                subtitle: 'Easier on the eyes in low light',
+                value: appState.darkMode,
+                onChanged: (bool value) {
+                  // ignore: discarded_futures
+                  context.read<AppState>().setDarkMode(value);
+                },
+              ),
+              _buildSwitchTile(
+                context,
+                icon: Icons.center_focus_strong_outlined,
+                title: 'Tiled pest scan',
+                value: appState.inferenceAccuracyMode,
+                onChanged: (bool value) {
+                  // ignore: discarded_futures
+                  context.read<AppState>().setInferenceAccuracyMode(value);
+                },
+              ),
+              _buildSwitchTile(
+                context,
+                icon: Icons.school_outlined,
+                title: 'Navigation guide on open',
+                value: _showNavGuideEachOpen,
+                onChanged: (bool value) async {
+                  setState(() => _showNavGuideEachOpen = value);
+                  await setNavigationGuideShowEachSession(value);
                 },
               ),
               _buildTile(
                 context,
                 icon: Icons.notifications,
                 title: 'Notifications',
-                color: Colors.orange,
                 onTap: () => Navigator.pushNamed(context, '/notifications'),
               ),
             ]),
@@ -304,14 +188,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 context,
                 icon: Icons.feedback,
                 title: 'Feedback',
-                color: Colors.blue,
                 onTap: () => Navigator.pushNamed(context, '/feedback'),
               ),
               _buildTile(
                 context,
                 icon: Icons.help,
                 title: 'FAQ',
-                color: Theme.of(context).colorScheme.primary,
                 onTap: () => Navigator.pushNamed(context, '/faq'),
               ),
             ]),
@@ -320,7 +202,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 context,
                 icon: Icons.privacy_tip,
                 title: 'Privacy Policy',
-                color: Colors.teal,
                 onTap: () => Navigator.push<void>(
                   context,
                   MaterialPageRoute<void>(
@@ -332,7 +213,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 context,
                 icon: Icons.description,
                 title: 'Terms & Conditions',
-                color: Colors.indigo,
                 onTap: () => Navigator.push<void>(
                   context,
                   MaterialPageRoute<void>(
@@ -347,7 +227,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 icon: Icons.info,
                 title: 'About',
                 subtitle: _appVersion.isEmpty ? 'Version …' : 'Version $_appVersion',
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 onTap: () {
                   Navigator.push<void>(
                     context,
@@ -356,10 +235,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 },
               ),
             ]),
-            const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: ElevatedButton(
+            if (demoAccountSwitcherEnabled())
+              _buildSection(context, 'Developer', <Widget>[
+                const DemoAccountSwitcher(),
+              ]),
+            const SizedBox(height: 12),
+            ElevatedButton(
                 onPressed: () => _signOut(context),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.error,
@@ -370,12 +251,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 child: const Text(
-                  'Sign Out',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+                'Sign Out',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 8),
           ],
         ),
     );
@@ -390,7 +270,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          padding: const EdgeInsets.fromLTRB(0, 16, 0, 8),
           child: Text(
             title,
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
@@ -411,27 +291,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required IconData icon,
     required String title,
     String? subtitle,
-    required Color color,
     required VoidCallback onTap,
   }) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    final ColorScheme cs = Theme.of(context).colorScheme;
+    return PineCard(
+      margin: const EdgeInsets.only(bottom: 8),
+      onTap: onTap,
       child: ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: color, size: 20),
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+        leading: _SettingsIcon(icon: icon, color: cs.primary),
         title: Text(title),
         subtitle: subtitle != null ? Text(subtitle) : null,
         trailing: Icon(
           Icons.chevron_right,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          color: cs.onSurfaceVariant,
         ),
-        onTap: onTap,
+      ),
+    );
+  }
+
+  Widget _buildSwitchTile(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    final ColorScheme cs = Theme.of(context).colorScheme;
+    return PineCard(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: SwitchListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
+        secondary: _SettingsIcon(icon: icon, color: cs.primary),
+        title: Text(title),
+        subtitle: subtitle != null ? Text(subtitle) : null,
+        value: value,
+        onChanged: onChanged,
       ),
     );
   }
@@ -465,5 +361,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Navigator.pushReplacementNamed(context, '/');
       }
     }
+  }
+}
+
+class _SettingsIcon extends StatelessWidget {
+  const _SettingsIcon({required this.icon, required this.color});
+
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Icon(icon, color: color, size: 20),
+    );
   }
 }

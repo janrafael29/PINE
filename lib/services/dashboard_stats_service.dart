@@ -162,4 +162,16 @@ class DashboardStatsCalculator {
       dailyCounts: dailyCounts,
     );
   }
+
+  /// Farmers: prefer local SQLite captures (update immediately after scan).
+  static DashboardStats farmerWeeklyStats({
+    required DashboardStats local,
+    required DashboardStats remote,
+  }) {
+    if (local.imageCount > 0 ||
+        local.dailyCounts.any((int c) => c > 0)) {
+      return local;
+    }
+    return remote;
+  }
 }

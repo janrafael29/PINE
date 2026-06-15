@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../core/more_tab_images.dart';
 import '../core/theme.dart';
+import '../widgets/app_scaffold.dart';
 
 class DiseaseDetailScreen extends StatelessWidget {
   const DiseaseDetailScreen({
@@ -76,13 +77,8 @@ The challenges posed by anthracnose are substantial. First, the disease directly
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-        backgroundColor: AppTheme.primaryGreen,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
+    return AppScaffold(
+      title: title,
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -129,21 +125,21 @@ The challenges posed by anthracnose are substantial. First, the disease directly
                           fit: BoxFit.cover,
                           errorBuilder: (BuildContext context, Object error,
                               StackTrace? stackTrace) {
-                            return const Center(
+                            return Center(
                               child: Icon(
                                 Icons.image_outlined,
                                 size: 64,
-                                color: AppTheme.textMedium,
+                                color: context.pineTextSecondary,
                               ),
                             );
                           },
                         )
                       else
-                        const Center(
+                        Center(
                           child: Icon(
                             Icons.image_outlined,
                             size: 64,
-                            color: AppTheme.textMedium,
+                            color: context.pineTextSecondary,
                           ),
                         ),
                       if (imageDescription != null)

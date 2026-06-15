@@ -93,6 +93,8 @@ class _SpotlightNavigationGuideOverlayState
     extends State<SpotlightNavigationGuideOverlay>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   int _step = 0;
+  late final List<NavigationGuideSlide> _slides =
+      navigationGuideSlidesForCurrentUser();
   List<RRect>? _holes;
   int _measureAttempts = 0;
 
@@ -229,7 +231,7 @@ class _SpotlightNavigationGuideOverlayState
     // Avoid triggering setState/navigation while Flutter is laying out widgets.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _pageTransitioning) return;
-      final NavigationGuideSlide liveSlide = kNavigationGuideSlides[_step];
+      final NavigationGuideSlide liveSlide = _slides[_step];
       final List<NavigationGuideSpotlightTarget> liveSeq =
           liveSlide.spotlightSequence;
       final bool onLastSequencePart =
@@ -245,7 +247,7 @@ class _SpotlightNavigationGuideOverlayState
   }
 
   List<NavigationGuideSpotlightTarget> _targetsForMeasurement() {
-    final NavigationGuideSlide slide = kNavigationGuideSlides[_step];
+    final NavigationGuideSlide slide = _slides[_step];
     if (slide.spotlightSequence.isNotEmpty) {
       return <NavigationGuideSpotlightTarget>[
         slide.spotlightSequence[_seqIndex],
@@ -255,7 +257,9 @@ class _SpotlightNavigationGuideOverlayState
   }
 
   List<GlobalKey> _keysForCurrentTargets() {
-    return DashboardGuideKeys.keysForTargets(_targetsForMeasurement());
+    final DashboardGuideKeyHolder? holder = DashboardGuideKeyHolder.attached;
+    if (holder == null) return const <GlobalKey>[];
+    return holder.keysForTargets(_targetsForMeasurement());
   }
 
   Future<void> _scrollCurrentTargetsIntoView() async {
@@ -385,7 +389,7 @@ class _SpotlightNavigationGuideOverlayState
   }
 
   Future<void> _advanceToNextSequencePart() async {
-    final NavigationGuideSlide slide = kNavigationGuideSlides[_step];
+    final NavigationGuideSlide slide = _slides[_step];
     final List<NavigationGuideSpotlightTarget> seq = slide.spotlightSequence;
     if (seq.isEmpty || _seqIndex >= seq.length - 1) return;
 
@@ -416,7 +420,7 @@ class _SpotlightNavigationGuideOverlayState
     // Manual taps should not restart the 4s countdown.
     _ensureAutoAdvanceLoop();
 
-    final NavigationGuideSlide slide = kNavigationGuideSlides[_step];
+    final NavigationGuideSlide slide = _slides[_step];
     final List<NavigationGuideSpotlightTarget> seq = slide.spotlightSequence;
     final bool hasSeq = seq.isNotEmpty;
 
@@ -425,7 +429,7 @@ class _SpotlightNavigationGuideOverlayState
       return;
     }
 
-    if (_step >= kNavigationGuideSlides.length - 1) {
+    if (_step >= _slides.length - 1) {
       NavigationGuideSync.activeStep.value = null;
       widget.onFinishedSteps();
       return;
@@ -461,7 +465,7 @@ class _SpotlightNavigationGuideOverlayState
     // Manual taps should not restart the 4s countdown.
     _ensureAutoAdvanceLoop();
 
-    final NavigationGuideSlide slide = kNavigationGuideSlides[_step];
+    final NavigationGuideSlide slide = _slides[_step];
     final List<NavigationGuideSpotlightTarget> seq = slide.spotlightSequence;
     final bool hasSeq = seq.isNotEmpty;
 
@@ -502,7 +506,7 @@ class _SpotlightNavigationGuideOverlayState
       if (!mounted) return;
 
       final int prevStep = _step - 1;
-      final NavigationGuideSlide prevSlide = kNavigationGuideSlides[prevStep];
+      final NavigationGuideSlide prevSlide = _slides[prevStep];
       final int prevSeqIndex = prevSlide.spotlightSequence.isNotEmpty
           ? prevSlide.spotlightSequence.length - 1
           : 0;
@@ -525,7 +529,7 @@ class _SpotlightNavigationGuideOverlayState
   Widget build(BuildContext context) {
     final MediaQueryData mq = MediaQuery.of(context);
     final Size screenSize = mq.size;
-    final NavigationGuideSlide slide = kNavigationGuideSlides[_step];
+    final NavigationGuideSlide slide = _slides[_step];
 
     Rect? union;
     if (_holes != null && _holes!.isNotEmpty) {
@@ -775,7 +779,8 @@ class _GuideCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool lastMainSlide = step >= kNavigationGuideSlides.length - 1;
+    final bool lastMainSlide =
+        step >= navigationGuideSlidesForCurrentUser().length - 1;
     final bool morePartsOnSlide =
         sequenceActive && sequenceIndex < sequenceLength - 1;
     final String buttonLabel =

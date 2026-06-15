@@ -4,6 +4,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/theme.dart';
+
 const String _keyOnboardingComplete = 'onboarding_complete';
 
 /// Returns true if onboarding has been completed at least once.
@@ -86,74 +88,76 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget build(BuildContext context) {
     final ColorScheme cs = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: cs.surfaceContainerHighest,
-      body: SafeArea(
-        child: Column(
-          children: <Widget>[
-            Expanded(
-              child: PageView.builder(
-                controller: _pageController,
-                onPageChanged: (int index) =>
-                    setState(() => _currentPage = index),
-                itemCount: _pages.length,
-                itemBuilder: (BuildContext context, int index) {
-                  final page = _pages[index];
-                  return _OnboardingPage(
-                    title: page.title,
-                    highlight: page.highlight,
-                    body: page.body,
-                    icon: page.icon,
-                  );
-                },
+      body: AppBackground.withPattern(
+        context,
+        child: SafeArea(
+          child: Column(
+            children: <Widget>[
+              Expanded(
+                child: PageView.builder(
+                  controller: _pageController,
+                  onPageChanged: (int index) =>
+                      setState(() => _currentPage = index),
+                  itemCount: _pages.length,
+                  itemBuilder: (BuildContext context, int index) {
+                    final page = _pages[index];
+                    return _OnboardingPage(
+                      title: page.title,
+                      highlight: page.highlight,
+                      body: page.body,
+                      icon: page.icon,
+                    );
+                  },
+                ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-              child: Column(
-                children: <Widget>[
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: _onContinue,
-                      style: ElevatedButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(26),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+                child: Column(
+                  children: <Widget>[
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: _onContinue,
+                        style: ElevatedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(26),
+                          ),
                         ),
-                      ),
-                      child: Text(
-                        _currentPage < _pages.length - 1
-                            ? 'Continue'
-                            : 'Get Started',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                        child: Text(
+                          _currentPage < _pages.length - 1
+                              ? 'Continue'
+                              : 'Get Started',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List<Widget>.generate(
-                      _pages.length,
-                      (int i) => Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: i == _currentPage
-                              ? cs.primary
-                              : cs.outlineVariant,
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List<Widget>.generate(
+                        _pages.length,
+                        (int i) => Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: i == _currentPage
+                                ? cs.primary
+                                : cs.outlineVariant,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

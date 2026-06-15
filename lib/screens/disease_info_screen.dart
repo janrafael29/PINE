@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../core/app_state.dart';
 import '../core/theme.dart';
+import '../widgets/app_scaffold.dart';
 import 'disease_detail_screen.dart';
 import 'disease_by_category_screen.dart';
 import 'educational_content_screen.dart';
@@ -55,13 +56,8 @@ class DiseaseInfoScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool fil = context.watch<AppState>().isFilipino;
     final textTheme = Theme.of(context).textTheme;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(fil ? 'Impormasyon sa Sakit' : 'Disease Information'),
-        backgroundColor: AppTheme.primaryGreen,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
+    return AppScaffold(
+      title: fil ? 'Impormasyon sa Sakit' : 'Disease Information',
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(

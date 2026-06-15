@@ -23,6 +23,7 @@ import 'services/geo_fence_service.dart';
 import 'services/geo_service.dart';
 import 'services/image_storage_service.dart';
 import 'services/inference_service.dart';
+import 'screens/demo_account_switch_screen.dart';
 import 'screens/intro_flow_screen.dart';
 import 'screens/main_dashboard_screen.dart';
 import 'screens/fields_list_screen.dart';
@@ -147,70 +148,71 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
+    final ThemeMode themeMode =
+        context.select<AppState, ThemeMode>((AppState s) => s.themeMode);
     if (!widget.supabaseConfigured) {
-      return Consumer<AppState>(
-        builder: (BuildContext context, AppState appState, _) {
-          return MaterialApp(
-            title: 'PINYA-PIC',
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.lightTheme,
-            darkTheme: AppTheme.darkTheme,
-            themeMode: appState.themeMode,
-            home: ConfigRequiredScreen(
-              message: (SupabaseClientProvider.instance.initError ?? '')
-                  .toString(),
-            ),
-          );
-        },
+      return MaterialApp(
+        title: 'PINYA-PIC',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: themeMode,
+        home: ConfigRequiredScreen(
+          message: (SupabaseClientProvider.instance.initError ?? '')
+              .toString(),
+        ),
       );
     }
-    return Consumer<AppState>(
-      builder: (BuildContext context, AppState appState, _) {
-        return MaterialApp(
-          navigatorKey: _navKey,
-          title: 'PINYA-PIC',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
-          themeMode: appState.themeMode,
-          initialRoute: '/',
-          routes: <String, WidgetBuilder>{
-            '/': (BuildContext context) => const IntroFlowScreen(),
-            '/login': (BuildContext context) {
-              final Object? args = ModalRoute.of(context)?.settings.arguments;
-              if (args is LoginRouteArgs) {
-                return LoginScreen(prefillEmail: args.email);
-              }
-              return const LoginScreen();
-            },
-            '/register': (BuildContext context) => const RegisterScreen(),
-            '/forgot-password': (BuildContext context) {
-              final Object? args = ModalRoute.of(context)?.settings.arguments;
-              if (args is ForgotPasswordRouteArgs) {
-                return ForgotPasswordScreen(prefillEmail: args.email);
-              }
-              return const ForgotPasswordScreen();
-            },
-            '/reset-password': (BuildContext context) =>
-                const ResetPasswordScreen(),
-            '/dashboard': (BuildContext context) => const MainDashboardScreen(),
-            '/fields': (BuildContext context) => const FieldsListScreen(),
-            '/diseases': (BuildContext context) => const DiseaseInfoScreen(),
-            '/camera': (BuildContext context) => const PhotoSourcePicker(),
-            '/captured': (BuildContext context) => const CapturedPhotosScreen(),
-            '/location': (BuildContext context) => const LocationSelectorScreen(),
-            '/settings': (BuildContext context) => const SettingsScreen(),
-            '/profile': (BuildContext context) => const ProfileScreen(),
-            '/notifications': (BuildContext context) =>
-                const NotificationsScreen(),
-            '/faq': (BuildContext context) => const FaqScreen(),
-            '/privacy': (BuildContext context) => const PrivacyScreen(),
-            '/terms': (BuildContext context) => const TermsScreen(),
-            '/feedback': (BuildContext context) => const FeedbackScreen(),
-            '/nickname-prompt': (BuildContext context) =>
-                const NicknamePromptScreen(),
-          },
-        );
+    return MaterialApp(
+      navigatorKey: _navKey,
+      title: 'PINYA-PIC',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: themeMode,
+      initialRoute: '/',
+      routes: <String, WidgetBuilder>{
+        '/': (BuildContext context) => const IntroFlowScreen(),
+        '/login': (BuildContext context) {
+          final Object? args = ModalRoute.of(context)?.settings.arguments;
+          if (args is LoginRouteArgs) {
+            return LoginScreen(prefillEmail: args.email);
+          }
+          return const LoginScreen();
+        },
+        '/register': (BuildContext context) => const RegisterScreen(),
+        '/forgot-password': (BuildContext context) {
+          final Object? args = ModalRoute.of(context)?.settings.arguments;
+          if (args is ForgotPasswordRouteArgs) {
+            return ForgotPasswordScreen(prefillEmail: args.email);
+          }
+          return const ForgotPasswordScreen();
+        },
+        '/reset-password': (BuildContext context) =>
+            const ResetPasswordScreen(),
+        '/dashboard': (BuildContext context) => const MainDashboardScreen(),
+        '/fields': (BuildContext context) => const FieldsListScreen(),
+        '/diseases': (BuildContext context) => const DiseaseInfoScreen(),
+        '/camera': (BuildContext context) => const PhotoSourcePicker(),
+        '/captured': (BuildContext context) => const CapturedPhotosScreen(),
+        '/location': (BuildContext context) => const LocationSelectorScreen(),
+        '/settings': (BuildContext context) => const SettingsScreen(),
+        '/profile': (BuildContext context) => const ProfileScreen(),
+        '/notifications': (BuildContext context) =>
+            const NotificationsScreen(),
+        '/faq': (BuildContext context) => const FaqScreen(),
+        '/privacy': (BuildContext context) => const PrivacyScreen(),
+        '/terms': (BuildContext context) => const TermsScreen(),
+        '/feedback': (BuildContext context) => const FeedbackScreen(),
+        '/nickname-prompt': (BuildContext context) =>
+            const NicknamePromptScreen(),
+        '/demo-account-switch': (BuildContext context) {
+          final Object? args = ModalRoute.of(context)?.settings.arguments;
+          if (args is! DemoAccountSwitchArgs) {
+            return const IntroFlowScreen();
+          }
+          return DemoAccountSwitchScreen(args: args);
+        },
       },
     );
   }

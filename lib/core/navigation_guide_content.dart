@@ -3,6 +3,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import 'admin_session.dart';
 import 'theme.dart';
 
 /// Real widgets to cut out during the spotlight tour (nav + on-screen regions).
@@ -52,161 +53,84 @@ const TextStyle kNavigationGuideBodyHighlightStyle = TextStyle(
   color: AppTheme.primaryGreen,
 );
 
-const List<NavigationGuideSlide> kNavigationGuideSlides = <
-    NavigationGuideSlide>[
+const List<NavigationGuideSlide> kFarmerNavigationGuideSlides =
+    <NavigationGuideSlide>[
   (
-    title: 'Home — your dashboard',
+    title: 'Home',
     icon: Icons.home_outlined,
     spotlightTargets: <NavigationGuideSpotlightTarget>[],
     spotlightSequence: <NavigationGuideSpotlightTarget>[
       NavigationGuideSpotlightTarget.homeNav,
       NavigationGuideSpotlightTarget.homeTotalFields,
-      NavigationGuideSpotlightTarget.homeRegion,
       NavigationGuideSpotlightTarget.homeSavedImages,
       NavigationGuideSpotlightTarget.homeMapPreview,
     ],
     body: <({String text, bool highlight})>[
-      (text: 'Start with ', highlight: false),
+      (text: 'Your ', highlight: false),
       (text: 'Home', highlight: true),
-      (
-        text: ', the first stop on the bottom bar. Inside you’ll see the ',
-        highlight: false,
-      ),
-      (text: 'PINYA-PIC', highlight: true),
-      (text: ' header, a ', highlight: false),
-      (text: 'greeting', highlight: true),
-      (
-        text:
-            ', and—when you’re signed in—mini cards for ',
-        highlight: false,
-      ),
-      (text: 'Total fields', highlight: true),
-      (text: ' and ', highlight: false),
-      (text: 'Region', highlight: true),
-      (
-        text: '. Below that: ',
-        highlight: false,
-      ),
-      (text: 'Saved Images', highlight: true),
-      (
-        text: ' (your latest captures), then a ',
-        highlight: false,
-      ),
-      (text: 'Map preview', highlight: true),
-      (
-        text:
-            ' for Polomolok—tap it when you’re online to jump into the location tools.',
-        highlight: false,
-      ),
+      (text: ' tab shows field stats, ', highlight: false),
+      (text: 'saved images', highlight: true),
+      (text: ', and a ', highlight: false),
+      (text: 'map preview', highlight: true),
+      (text: ' of positive sightings.', highlight: false),
     ],
     bodyPerSequenceStep: <List<({String text, bool highlight})>>[
       <({String text, bool highlight})>[
-        (text: 'Use the ', highlight: false),
+        (text: 'Tap ', highlight: false),
         (text: 'Home', highlight: true),
-        (
-          text: ' tab in the bar below—this is your main overview.',
-          highlight: false,
-        ),
+        (text: ' for your dashboard.', highlight: false),
       ],
       <({String text, bool highlight})>[
-        (text: 'This card is ', highlight: false),
+        (text: 'See ', highlight: false),
         (text: 'Total fields', highlight: true),
-        (text: ': how many plots you’ve registered.', highlight: false),
+        (text: ' and region at a glance.', highlight: false),
       ],
       <({String text, bool highlight})>[
-        (text: 'This card is ', highlight: false),
-        (text: 'Region', highlight: true),
-        (text: '—where your fields are based.', highlight: false),
-      ],
-      <({String text, bool highlight})>[
-        (text: 'Scroll to ', highlight: false),
+        (text: 'Open ', highlight: false),
         (text: 'Saved Images', highlight: true),
-        (text: ' for your latest pest photos.', highlight: false),
+        (text: ' for recent captures.', highlight: false),
       ],
       <({String text, bool highlight})>[
-        (text: 'The ', highlight: false),
-        (text: 'Map preview', highlight: true),
-        (
-          text: ' opens Polomolok maps when you’re online.',
-          highlight: false,
-        ),
+        (text: 'Use the ', highlight: false),
+        (text: 'map preview', highlight: true),
+        (text: ' to view sightings.', highlight: false),
       ],
     ],
   ),
   (
-    title: 'Diagnose — stats & disease lookup',
+    title: 'Diagnose',
     icon: Icons.shield_outlined,
     spotlightTargets: <NavigationGuideSpotlightTarget>[],
     spotlightSequence: <NavigationGuideSpotlightTarget>[
       NavigationGuideSpotlightTarget.diagnoseNav,
       NavigationGuideSpotlightTarget.diagnoseSearchDiseases,
       NavigationGuideSpotlightTarget.diagnoseWeekStats,
-      NavigationGuideSpotlightTarget.diagnosePestsChart,
-      NavigationGuideSpotlightTarget.diagnoseMyFieldsStrip,
     ],
     body: <({String text, bool highlight})>[
-      (text: 'Next, open ', highlight: false),
+      (text: 'On ', highlight: false),
       (text: 'Diagnose', highlight: true),
-      (
-        text:
-            '. Here you can tap ',
-        highlight: false,
-      ),
-      (text: 'Search for Diseases', highlight: true),
-      (
-        text: ' to browse symptoms and care info. The screen summarizes ',
-        highlight: false,
-      ),
-      (text: 'this week’s captures', highlight: true),
-      (text: ', ', highlight: false),
-      (text: 'infestation', highlight: true),
-      (
-        text: ' trends, and a ',
-        highlight: false,
-      ),
-      (text: 'pests chart', highlight: true),
-      (
-        text: ' over the last several days. Scroll down for another ',
-        highlight: false,
-      ),
-      (text: 'My Fields', highlight: true),
-      (
-        text: ' strip tied to your account. (Sign in to see live numbers.)',
-        highlight: false,
-      ),
+      (text: ', search diseases, check weekly stats, and view pest trends.', highlight: false),
     ],
     bodyPerSequenceStep: <List<({String text, bool highlight})>>[
       <({String text, bool highlight})>[
-        (text: 'Tap ', highlight: false),
+        (text: 'Open ', highlight: false),
         (text: 'Diagnose', highlight: true),
-        (text: ' in the bottom bar to open this screen.', highlight: false),
+        (text: ' from the bottom bar.', highlight: false),
       ],
       <({String text, bool highlight})>[
         (text: 'Tap ', highlight: false),
         (text: 'Search for Diseases', highlight: true),
-        (text: ' to browse symptoms and care info.', highlight: false),
+        (text: ' for care info.', highlight: false),
       ],
       <({String text, bool highlight})>[
-        (text: 'These cards summarize ', highlight: false),
-        (text: 'this week’s captures', highlight: true),
-        (text: ' and ', highlight: false),
-        (text: 'infestation', highlight: true),
-        (text: ' at a glance.', highlight: false),
-      ],
-      <({String text, bool highlight})>[
-        (text: 'The line chart tracks ', highlight: false),
-        (text: 'pests', highlight: true),
-        (text: ' over recent days.', highlight: false),
-      ],
-      <({String text, bool highlight})>[
-        (text: 'Scroll for another ', highlight: false),
-        (text: 'My Fields', highlight: true),
-        (text: ' strip on this screen.', highlight: false),
+        (text: 'Review ', highlight: false),
+        (text: 'weekly stats', highlight: true),
+        (text: ' and charts here.', highlight: false),
       ],
     ],
   ),
   (
-    title: 'Scan — capture in one tap',
+    title: 'Scan',
     icon: Icons.photo_camera,
     spotlightTargets: <NavigationGuideSpotlightTarget>[],
     spotlightSequence: <NavigationGuideSpotlightTarget>[
@@ -215,170 +139,338 @@ const List<NavigationGuideSlide> kNavigationGuideSlides = <
     ],
     body: <({String text, bool highlight})>[
       (text: 'Tap the ', highlight: false),
-      (text: 'green camera button', highlight: true),
-      (
-        text:
-            ' to take a photo or open the gallery. After captures, use ',
-        highlight: false,
-      ),
+      (text: 'camera', highlight: true),
+      (text: ' to capture pests. ', highlight: false),
       (text: 'Sync to cloud', highlight: true),
-      (
-        text:
-            ' on the Add Photo screen to upload offline ',
-        highlight: false,
-      ),
-      (text: 'fields', highlight: true),
-      (text: ' and ', highlight: false),
-      (text: 'pest photos', highlight: true),
-      (text: ' when you are online.', highlight: false),
+      (text: ' uploads offline photos when online.', highlight: false),
     ],
     bodyPerSequenceStep: <List<({String text, bool highlight})>>[
       <({String text, bool highlight})>[
-        (text: 'Tap the ', highlight: false),
-        (text: 'green camera', highlight: true),
-        (
-          text: ' button to open Add Photo (camera or gallery).',
-          highlight: false,
-        ),
+        (text: 'Use the ', highlight: false),
+        (text: 'camera button', highlight: true),
+        (text: ' to scan a field.', highlight: false),
       ],
       <({String text, bool highlight})>[
-        (text: 'On this screen, ', highlight: false),
+        (text: 'Tap ', highlight: false),
         (text: 'Sync to cloud', highlight: true),
-        (
-          text:
-              ' uploads fields you created offline and detections waiting in the queue.',
-          highlight: false,
-        ),
+        (text: ' after capturing offline.', highlight: false),
       ],
     ],
   ),
   (
-    title: 'My Fields — plots & reminders',
+    title: 'My Fields',
     icon: Icons.landscape_outlined,
     spotlightTargets: <NavigationGuideSpotlightTarget>[],
     spotlightSequence: <NavigationGuideSpotlightTarget>[
       NavigationGuideSpotlightTarget.myFieldsNav,
-      NavigationGuideSpotlightTarget.myFieldsHeaderTabs,
       NavigationGuideSpotlightTarget.myFieldsGrid,
     ],
     body: <({String text, bool highlight})>[
-      (text: 'Choose ', highlight: false),
+      (text: 'Manage plots in ', highlight: false),
       (text: 'My Fields', highlight: true),
-      (
-        text: ' to manage land. At the top, switch between the ',
-        highlight: false,
-      ),
-      (text: 'My Fields', highlight: true),
-      (text: ' and ', highlight: false),
-      (text: 'Reminders', highlight: true),
-      (
-        text: ' tabs. Your plots show up in a ',
-        highlight: false,
-      ),
-      (text: 'grid', highlight: true),
-      (
-        text: '; tap any card for ',
-        highlight: false,
-      ),
-      (text: 'field details', highlight: true),
-      (
-        text: ', or use ',
-        highlight: false,
-      ),
-      (text: 'Add field', highlight: true),
-      (
-        text: ' to register new ground.',
-        highlight: false,
-      ),
+      (text: '. Tap a card for details or add a new field.', highlight: false),
     ],
     bodyPerSequenceStep: <List<({String text, bool highlight})>>[
       <({String text, bool highlight})>[
-        (text: 'Tap ', highlight: false),
+        (text: 'Open ', highlight: false),
         (text: 'My Fields', highlight: true),
-        (text: ' in the bottom bar to manage your plots.', highlight: false),
+        (text: ' from the bar.', highlight: false),
       ],
       <({String text, bool highlight})>[
-        (text: 'Switch between ', highlight: false),
-        (text: 'My Fields', highlight: true),
-        (text: ' and ', highlight: false),
-        (text: 'Reminders', highlight: true),
-        (text: ' here.', highlight: false),
-      ],
-      <({String text, bool highlight})>[
-        (text: 'Your plots appear in this ', highlight: false),
+        (text: 'Your fields appear in this ', highlight: false),
         (text: 'grid', highlight: true),
-        (text: '. Tap a card for details.', highlight: false),
+        (text: '.', highlight: false),
       ],
     ],
   ),
   (
-    title: 'More — profile & learning library',
+    title: 'More',
     icon: Icons.grid_view_rounded,
     spotlightTargets: <NavigationGuideSpotlightTarget>[],
     spotlightSequence: <NavigationGuideSpotlightTarget>[
       NavigationGuideSpotlightTarget.moreNav,
       NavigationGuideSpotlightTarget.moreProfile,
-      NavigationGuideSpotlightTarget.moreGeneralInfo,
-      NavigationGuideSpotlightTarget.moreCommonDiseases,
-      NavigationGuideSpotlightTarget.moreExploreByParts,
     ],
     body: <({String text, bool highlight})>[
-      (text: 'Finally, ', highlight: false),
+      (text: 'In ', highlight: false),
       (text: 'More', highlight: true),
-      (
-        text: ' rounds out the tour. You’ll find your ',
-        highlight: false,
-      ),
-      (text: 'profile', highlight: true),
-      (
-        text: ' card (tap through to account settings), horizontal ',
-        highlight: false,
-      ),
-      (text: 'General Info', highlight: true),
-      (
-        text: ' articles, ',
-        highlight: false,
-      ),
-      (text: 'Common Diseases', highlight: true),
-      (
-        text: ', and ',
-        highlight: false,
-      ),
-      (text: 'Explore by plant part', highlight: true),
-      (
-        text: '—handy references when you’re not on a field visit.',
-        highlight: false,
-      ),
+      (text: ', open your profile, learning articles, and settings.', highlight: false),
     ],
     bodyPerSequenceStep: <List<({String text, bool highlight})>>[
       <({String text, bool highlight})>[
         (text: 'Tap ', highlight: false),
         (text: 'More', highlight: true),
-        (text: ' in the bottom bar for profile and learning content.', highlight: false),
+        (text: ' for account and help.', highlight: false),
       ],
       <({String text, bool highlight})>[
         (text: 'Your ', highlight: false),
         (text: 'profile', highlight: true),
-        (text: ' card opens account settings.', highlight: false),
-      ],
-      <({String text, bool highlight})>[
-        (text: 'Browse ', highlight: false),
-        (text: 'General Info', highlight: true),
-        (text: ' articles in this row.', highlight: false),
-      ],
-      <({String text, bool highlight})>[
-        (text: 'See ', highlight: false),
-        (text: 'Common Diseases', highlight: true),
-        (text: ' for quick reference.', highlight: false),
-      ],
-      <({String text, bool highlight})>[
-        (text: 'Try ', highlight: false),
-        (text: 'Explore by plant part', highlight: true),
-        (text: ' when diagnosing.', highlight: false),
+        (text: ' opens account settings.', highlight: false),
       ],
     ],
   ),
 ];
+
+const List<NavigationGuideSlide> kDaNavigationGuideSlides = <NavigationGuideSlide>[
+  (
+    title: 'Home — staff view',
+    icon: Icons.home_outlined,
+    spotlightTargets: <NavigationGuideSpotlightTarget>[],
+    spotlightSequence: <NavigationGuideSpotlightTarget>[
+      NavigationGuideSpotlightTarget.homeNav,
+      NavigationGuideSpotlightTarget.homeGreeting,
+      NavigationGuideSpotlightTarget.homeMapPreview,
+    ],
+    body: <({String text, bool highlight})>[
+      (text: 'As ', highlight: false),
+      (text: 'Agriculturist staff', highlight: true),
+      (text: ', Home shows shortcuts, org map, and pending work.', highlight: false),
+    ],
+    bodyPerSequenceStep: <List<({String text, bool highlight})>>[
+      <({String text, bool highlight})>[
+        (text: 'Start on ', highlight: false),
+        (text: 'Home', highlight: true),
+        (text: ' for your staff dashboard.', highlight: false),
+      ],
+      <({String text, bool highlight})>[
+        (text: 'The greeting summarizes your ', highlight: false),
+        (text: 'review tasks', highlight: true),
+        (text: '.', highlight: false),
+      ],
+      <({String text, bool highlight})>[
+        (text: 'The ', highlight: false),
+        (text: 'map', highlight: true),
+        (text: ' shows org-wide positive sightings.', highlight: false),
+      ],
+    ],
+  ),
+  (
+    title: 'Analytics',
+    icon: Icons.insights_outlined,
+    spotlightTargets: <NavigationGuideSpotlightTarget>[],
+    spotlightSequence: <NavigationGuideSpotlightTarget>[
+      NavigationGuideSpotlightTarget.diagnoseNav,
+    ],
+    body: <({String text, bool highlight})>[
+      (text: 'Open ', highlight: false),
+      (text: 'Diagnose', highlight: true),
+      (text: ' for org-wide charts: positive vs negative, trends, and top farms.', highlight: false),
+    ],
+    bodyPerSequenceStep: <List<({String text, bool highlight})>>[
+      <({String text, bool highlight})>[
+        (text: 'Tap ', highlight: false),
+        (text: 'Diagnose', highlight: true),
+        (text: ' for analytics (not farmer disease search).', highlight: false),
+      ],
+    ],
+  ),
+  (
+    title: 'Farmer reports',
+    icon: Icons.rate_review_outlined,
+    spotlightTargets: <NavigationGuideSpotlightTarget>[],
+    spotlightSequence: <NavigationGuideSpotlightTarget>[
+      NavigationGuideSpotlightTarget.scanButton,
+    ],
+    body: <({String text, bool highlight})>[
+      (text: 'The center button opens ', highlight: false),
+      (text: 'Farmer reports', highlight: true),
+      (text: '. Review positive scans and write agriculturist / OMAG advice.', highlight: false),
+    ],
+    bodyPerSequenceStep: <List<({String text, bool highlight})>>[
+      <({String text, bool highlight})>[
+        (text: 'Tap the center ', highlight: false),
+        (text: 'reports', highlight: true),
+        (text: ' button. Red badges mean pending replies.', highlight: false),
+      ],
+    ],
+  ),
+  (
+    title: 'My Fields',
+    icon: Icons.landscape_outlined,
+    spotlightTargets: <NavigationGuideSpotlightTarget>[],
+    spotlightSequence: <NavigationGuideSpotlightTarget>[
+      NavigationGuideSpotlightTarget.myFieldsNav,
+      NavigationGuideSpotlightTarget.myFieldsGrid,
+    ],
+    body: <({String text, bool highlight})>[
+      (text: 'Browse all registered fields and open maps from ', highlight: false),
+      (text: 'My Fields', highlight: true),
+      (text: '.', highlight: false),
+    ],
+    bodyPerSequenceStep: <List<({String text, bool highlight})>>[
+      <({String text, bool highlight})>[
+        (text: 'Open ', highlight: false),
+        (text: 'My Fields', highlight: true),
+        (text: ' to see farmer plots.', highlight: false),
+      ],
+      <({String text, bool highlight})>[
+        (text: 'Tap a field card for details or map.', highlight: false),
+      ],
+    ],
+  ),
+  (
+    title: 'More',
+    icon: Icons.grid_view_rounded,
+    spotlightTargets: <NavigationGuideSpotlightTarget>[],
+    spotlightSequence: <NavigationGuideSpotlightTarget>[
+      NavigationGuideSpotlightTarget.moreNav,
+      NavigationGuideSpotlightTarget.moreProfile,
+    ],
+    body: <({String text, bool highlight})>[
+      (text: 'Use ', highlight: false),
+      (text: 'More', highlight: true),
+      (text: ' for profile, settings, and help content.', highlight: false),
+    ],
+    bodyPerSequenceStep: <List<({String text, bool highlight})>>[
+      <({String text, bool highlight})>[
+        (text: 'Tap ', highlight: false),
+        (text: 'More', highlight: true),
+        (text: ' for account options.', highlight: false),
+      ],
+      <({String text, bool highlight})>[
+        (text: 'Open ', highlight: false),
+        (text: 'profile', highlight: true),
+        (text: ' to manage your account.', highlight: false),
+      ],
+    ],
+  ),
+];
+
+const List<NavigationGuideSlide> kAdminNavigationGuideSlides = <NavigationGuideSlide>[
+  (
+    title: 'Home — admin view',
+    icon: Icons.home_outlined,
+    spotlightTargets: <NavigationGuideSpotlightTarget>[],
+    spotlightSequence: <NavigationGuideSpotlightTarget>[
+      NavigationGuideSpotlightTarget.homeNav,
+      NavigationGuideSpotlightTarget.homeGreeting,
+      NavigationGuideSpotlightTarget.homeMapPreview,
+    ],
+    body: <({String text, bool highlight})>[
+      (text: 'As ', highlight: false),
+      (text: 'admin', highlight: true),
+      (text: ', Home links to access requests, reports, and the org map.', highlight: false),
+    ],
+    bodyPerSequenceStep: <List<({String text, bool highlight})>>[
+      <({String text, bool highlight})>[
+        (text: 'Start on ', highlight: false),
+        (text: 'Home', highlight: true),
+        (text: ' for staff shortcuts.', highlight: false),
+      ],
+      <({String text, bool highlight})>[
+        (text: 'Review ', highlight: false),
+        (text: 'agriculturist access', highlight: true),
+        (text: ' and farmer report tiles here.', highlight: false),
+      ],
+      <({String text, bool highlight})>[
+        (text: 'The ', highlight: false),
+        (text: 'map', highlight: true),
+        (text: ' shows all positive sightings.', highlight: false),
+      ],
+    ],
+  ),
+  (
+    title: 'Analytics',
+    icon: Icons.insights_outlined,
+    spotlightTargets: <NavigationGuideSpotlightTarget>[],
+    spotlightSequence: <NavigationGuideSpotlightTarget>[
+      NavigationGuideSpotlightTarget.diagnoseNav,
+    ],
+    body: <({String text, bool highlight})>[
+      (text: 'Open ', highlight: false),
+      (text: 'Diagnose', highlight: true),
+      (text: ' for org-wide KPIs, trends, and top 5 farms.', highlight: false),
+    ],
+    bodyPerSequenceStep: <List<({String text, bool highlight})>>[
+      <({String text, bool highlight})>[
+        (text: 'Tap ', highlight: false),
+        (text: 'Diagnose', highlight: true),
+        (text: ' for the analytics dashboard.', highlight: false),
+      ],
+    ],
+  ),
+  (
+    title: 'Agriculturist access requests',
+    icon: Icons.how_to_reg_outlined,
+    spotlightTargets: <NavigationGuideSpotlightTarget>[],
+    spotlightSequence: <NavigationGuideSpotlightTarget>[
+      NavigationGuideSpotlightTarget.scanButton,
+    ],
+    body: <({String text, bool highlight})>[
+      (text: 'The center button opens ', highlight: false),
+      (text: 'agriculturist access requests', highlight: true),
+      (text: '. Approve or reject staff applications.', highlight: false),
+    ],
+    bodyPerSequenceStep: <List<({String text, bool highlight})>>[
+      <({String text, bool highlight})>[
+        (text: 'Tap the center ', highlight: false),
+        (text: 'requests', highlight: true),
+        (text: ' button. Badges show pending items.', highlight: false),
+      ],
+    ],
+  ),
+  (
+    title: 'My Fields',
+    icon: Icons.landscape_outlined,
+    spotlightTargets: <NavigationGuideSpotlightTarget>[],
+    spotlightSequence: <NavigationGuideSpotlightTarget>[
+      NavigationGuideSpotlightTarget.myFieldsNav,
+      NavigationGuideSpotlightTarget.myFieldsGrid,
+    ],
+    body: <({String text, bool highlight})>[
+      (text: 'View every registered field in ', highlight: false),
+      (text: 'My Fields', highlight: true),
+      (text: '.', highlight: false),
+    ],
+    bodyPerSequenceStep: <List<({String text, bool highlight})>>[
+      <({String text, bool highlight})>[
+        (text: 'Open ', highlight: false),
+        (text: 'My Fields', highlight: true),
+        (text: ' for the full field list.', highlight: false),
+      ],
+      <({String text, bool highlight})>[
+        (text: 'Tap a card to inspect or open the map.', highlight: false),
+      ],
+    ],
+  ),
+  (
+    title: 'More',
+    icon: Icons.grid_view_rounded,
+    spotlightTargets: <NavigationGuideSpotlightTarget>[],
+    spotlightSequence: <NavigationGuideSpotlightTarget>[
+      NavigationGuideSpotlightTarget.moreNav,
+      NavigationGuideSpotlightTarget.moreProfile,
+    ],
+    body: <({String text, bool highlight})>[
+      (text: 'Use ', highlight: false),
+      (text: 'More', highlight: true),
+      (text: ' for profile, settings, and help.', highlight: false),
+    ],
+    bodyPerSequenceStep: <List<({String text, bool highlight})>>[
+      <({String text, bool highlight})>[
+        (text: 'Tap ', highlight: false),
+        (text: 'More', highlight: true),
+        (text: ' for account tools.', highlight: false),
+      ],
+      <({String text, bool highlight})>[
+        (text: 'Open ', highlight: false),
+        (text: 'profile', highlight: true),
+        (text: ' or Settings from here.', highlight: false),
+      ],
+    ],
+  ),
+];
+
+/// Farmer tour (legacy name).
+const List<NavigationGuideSlide> kNavigationGuideSlides =
+    kFarmerNavigationGuideSlides;
+
+/// Role-aware slides: farmer, DA reporter, or full admin.
+List<NavigationGuideSlide> navigationGuideSlidesForCurrentUser() {
+  if (currentUserJwtFullAdmin()) return kAdminNavigationGuideSlides;
+  if (currentUserJwtDa()) return kDaNavigationGuideSlides;
+  return kFarmerNavigationGuideSlides;
+}
 
 /// Body text for the current spotlight step (or full [slide.body] as fallback).
 List<({String text, bool highlight})> navigationGuideBodyForSpotlightStep(

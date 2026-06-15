@@ -158,8 +158,10 @@ def main() -> None:
     thresh_png = OUT_DIR / "model_threshold_curve_v11.png"
 
     v2_csv = ROOT / "runs" / "retrain" / "mealybug_v2" / "results.csv"
+    v16_csv = ROOT / "runs" / "retrain" / "mealybug_v16_selffix" / "results.csv"
     fig26_v11 = OUT_DIR / "figure_26_training_curves_v11.png"
     fig26_v2 = OUT_DIR / "figure_26_training_curves_v2.png"
+    fig26_v16 = OUT_DIR / "figure_26_training_curves_v16_selffix.png"
 
     plot_training(
         v11_csv,
@@ -179,11 +181,20 @@ def main() -> None:
         model_label="YOLO26n mealybug_v2",
         run_note="Full train; 50 epochs (legacy comparison).",
     )
+    if v16_csv.is_file():
+        plot_figure_26_grid(
+            v16_csv,
+            fig26_v16,
+            model_label="YOLO26s mealybug_v16_selffix",
+            run_note="Fine-tune from v15; 92 epochs (deployed checkpoint).",
+        )
 
     print(f"Wrote {train_png}")
     print(f"Wrote {thresh_png}")
     print(f"Wrote {fig26_v11}")
     print(f"Wrote {fig26_v2}")
+    if v16_csv.is_file():
+        print(f"Wrote {fig26_v16}")
 
 
 if __name__ == "__main__":

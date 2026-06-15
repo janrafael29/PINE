@@ -76,6 +76,7 @@ python scripts/plot_model_metrics.py
 | Figure | File | Source |
 |--------|------|--------|
 | **v11 (current, thesis)** | `runs/calibration/figure_26_training_curves_v11.png` | `runs/retrain/mealybug_v11/results.csv` (16 epochs, fine-tune) |
+| **v16 (deployed, thesis Figure 26)** | `runs/calibration/figure_26_training_curves_v16_selffix.png` | `runs/retrain/mealybug_v16_selffix/results.csv` (92 epochs) |
 | v2 (legacy comparison) | `runs/calibration/figure_26_training_curves_v2.png` | `runs/retrain/mealybug_v2/results.csv` (50 epochs) |
 
 **Caption draft (v11):** Figure 26 shows validation precision, recall, mAP@0.5, and mAP@0.5:0.95 for **mealybug_v11** (YOLO26n fine-tune from v10, 16 epochs with early stopping). Metrics start high because weights were initialized from v10; best validation mAP@0.5 occurred at **epoch 1 (53.4%)**, with later epochs stable near 50–51% mAP@0.5.

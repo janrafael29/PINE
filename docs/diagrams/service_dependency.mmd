@@ -1,67 +1,48 @@
 flowchart TD
-    subgraph CORE[Core Layer]
-        SL[ServiceLocator]
-        AS[AppState Provider]
-        SC[SupabaseClientProvider]
-    end
-
     subgraph UI[UI Layer]
-        DS[DetectionScreen]
-        MD[MainDashboardScreen]
-        FL[FieldsListScreen]
-        EF[EditFieldScreen]
-        FD[FieldDetailScreen]
-        PS[ProfileScreen]
-        FS[FeedbackScreen]
+        MD[MainDashboardScreen _DiagnoseTab]
+        AR[AdminReportsScreen]
+        PRS[PhotoResultScreen permission_screens]
+        CPD[CapturedPhotoDetailScreen]
+        FL[FarmDetailsScreen FieldDetailScreen EditFieldScreen]
+        WEB[admin/app.js Supabase JS client]
     end
 
-    subgraph ORCH[Orchestration]
-        DFC[DetectionFlowController]
-        DSC[DashboardStatsCalculator]
+    subgraph ORCH[Orchestration / calculators]
+        DSC[DashboardStatsCalculator static]
+        SAC[StaffAnalyticsCalculator]
+        ARS[AdminReportsService]
+        SNB[StaffNavBadgesService]
     end
 
-    subgraph SERVICES[Service Layer]
-        CS[CameraService]
+    subgraph SERVICES[Services]
         IS[InferenceService]
-        GS[GeoService]
-        GFS[GeoFenceService]
-        ISS[ImageStorageService]
-        DBS[DatabaseService SQLite]
         CTS[CloudSyncService]
         RDS[DetectionService]
-        BIO[BiometricService]
+        DBS[DatabaseService]
+        EFS[ExpertFeedbackService]
+        CPRS[CapturedPhotosRemoteSync]
     end
 
-    subgraph DATA[Data Layer]
-        SQL[(SQLite)]
-        PG[(Supabase Postgres)]
-        ST[(Supabase Storage)]
-    end
-
-    SC --> MD
-    SC --> FL
-    SC --> PS
-
-    DS --> DFC
     MD --> DSC
+    MD --> SNB
+    MD --> CTS
+    MD --> SAC
+    AR --> ARS
+    AR --> CPRS
+    PRS --> IS
+    PRS --> DBS
+    PRS --> CTS
+    CPD --> EFS
+    FL --> DBS
+    FL --> CTS
+    WEB --> PG[(Postgres via Supabase JS)]
 
-    DFC --> CS
-    DFC --> IS
-    DFC --> GS
-    DFC --> GFS
-    DFC --> ISS
-    DFC --> DBS
-
-    DSC --> PG
-
+    SNB --> ARS
     CTS --> DBS
-    CTS --> ISS
     CTS --> RDS
-    FS --> CTS
+    CPRS --> DBS
 
-    RDS --> ST
+    DBS --> SQL[(SQLite)]
     RDS --> PG
-    DBS --> SQL
-
-    IS --> TFLITE[TFLite YOLO]
-    GS --> GPS[GPS]
+    RDS --> ST[(Storage)]
